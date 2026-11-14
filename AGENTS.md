@@ -45,9 +45,12 @@ Instrucciones para cualquier agente de IA que trabaje en este repositorio (Claud
 
 ## 4. Idioma
 
-- **En español**: comentarios, docstrings, specs, planes, guías, mensajes de commit, mensajes de error para el usuario y explicaciones a Hugo.
-- **Nombres de pruebas** en español, como la spec que comprueban: `def test_un_webhook_sin_firma_se_rechaza`.
-- **Nombres en el código** (variables, funciones, clases, archivos y rutas): `[NECESITA ACLARACIÓN: se decide al ratificar la constitución; el prototipo de backend usa español]`.
+Todo va en **español** (decisión de Hugo del 2026-11-14, constitución v1.0.0):
+
+- **Nombres del código**: variables, funciones, clases, módulos, archivos, rutas del API y campos JSON. Ejemplos: `crear_cobro`, `RepositorioCobros`, `/api/cobros`, `monto`.
+  - Excepción: los nombres que imponen las librerías, los protocolos o pey se dejan como son. Ejemplos: `lifespan`, `codiQrId`, `webhook-id`.
+- **Comentarios, docstrings, specs, planes, guías, mensajes de commit, mensajes para el usuario y explicaciones al equipo.**
+- **Nombres de pruebas**, como el comportamiento que comprueban. Ejemplo: `def test_un_webhook_sin_firma_se_rechaza`.
 
 ## 5. Estilo de código (backend)
 
@@ -59,7 +62,7 @@ Instrucciones para cualquier agente de IA que trabaje en este repositorio (Claud
 
 ## 6. Pruebas
 
-- **Pruebas primero** en las tareas de implementación: se escriben, se ven fallar y después se implementa.
+- **Pruebas primero en todo, backend y web** (principio V de la constitución, no negociable): se escriben, se ven fallar y después se implementa.
 - **Ninguna prueba automática llama al pey real** ni espera tiempo real: pey simulado (`httpx.MockTransport`) y reloj controlado.
 - **Pruebas con dinero real**: solo de $0.01, solo con cuentas propias o las CLABEs de prueba de pey, y solo con la autorización de Hugo en ese momento.
 
@@ -68,6 +71,7 @@ Instrucciones para cualquier agente de IA que trabaje en este repositorio (Claud
 | Pruebas del backend | `uv run --directory backend pytest -q` |
 | Lint | `uv run --directory backend ruff check .` |
 | Formato | `uv run --directory backend ruff format --check .` |
+| Pruebas de la web | Las define el plan de la primera spec de la web; se agregan aquí |
 | Conexión real con pey | `cd backend && uv run python scripts/probar_pey.py --esperar` |
 
 Una fase no se cierra sin tres cosas: todo en verde, su sección en `verification-guide.md` para Hugo y el mensaje de commit sugerido.

@@ -27,7 +27,7 @@ description: "Plantilla de tasks.md para PAGO FÁCIL (en español, pruebas prime
 3. **Solo se hace la tarea pedida.** Nada de funciones sorpresa, retoques cosméticos ni refactorizaciones fuera de la tarea.
 4. **Si el código obliga a cambiar algo**, se anota en el *Registro de implementación* del plan. Si toca una spec aprobada, se presenta como un cambio `C-n`, que Hugo aprueba por separado.
 5. **Una fase cierra con tres cosas:**
-   - todas las pruebas en verde (`uv run --directory backend pytest -q`, `ruff check` y `ruff format --check`);
+   - todas las pruebas en verde, en el backend y en la web: `uv run --directory backend pytest -q`, `ruff check`, `ruff format --check` y los comandos de pruebas de la web que defina el plan (pruebas primero en todo, principio V);
    - su sección en `verification-guide.md`;
    - el mensaje de commit sugerido, con formato `tipo(###): descripción en español`.
    - El commit, el push y el pull request los hace Hugo.
@@ -90,7 +90,7 @@ description: "Plantilla de tasks.md para PAGO FÁCIL (en español, pruebas prime
 
 ### Pruebas de la historia 1 (primero, deben fallar antes de implementar)
 
-- [ ] T005 [P] [US1] Prueba de [comportamiento] en `backend/tests/test_[nombre].py`
+- [ ] T005 [P] [US1] Prueba de [comportamiento] en `backend/tests/test_[nombre].py` (o en las pruebas de `web/` si la historia es de interfaz)
   - **RF**: [RF-00x]
   - **Dep.**: T004
   - **Hecho cuando**: la prueba existe y falla por la razón esperada
