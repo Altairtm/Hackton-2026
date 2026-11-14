@@ -40,7 +40,7 @@ RF-011, RF-012, RF-013, RF-014, RF-017, RF-018, RF-020, RF-029, RF-037, RF-039, 
 | 503 | `PEY_WEBHOOK_SECRET` vacío. No se procesa nada | `{"detail": "El aviso de pey todavía no está configurado"}` |
 
 - Respuesta en menos de 1 s (CE-010): el manejador no hace llamadas de red; solo verifica, registra y publica en memoria.
-- **Corte M0**: si el cobro ya tenía un pago, el nuevo responde `procesado: false` y queda una advertencia con su `transactionId`. **Corte 2**: se registra como pago siguiente (RF-015).
+- Si el cobro ya tenía pagos, una transacción nueva se registra como pago siguiente, con su número, y responde `procesado: true` (RF-015, RF-016; desde el corte M0 por C-1).
 
 ## 5. Ejemplo
 

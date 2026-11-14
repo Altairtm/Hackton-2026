@@ -2,7 +2,7 @@
 
 - **ID**: `001-backend-mvp`
 - **Fecha**: `2026-11-14`
-- **Estado**: `Aprobada`. Hugo la aprobó el 2026-11-14, después de la entrevista (E-1 a E-7) y de la QA (QA-1 a QA-10, todas aplicadas). Se entrega en dos cortes (§1.2). El siguiente paso es `/speckit-plan`, cuando Hugo lo pida.
+- **Estado**: `Aprobada`. Hugo la aprobó el 2026-11-14, después de la entrevista (E-1 a E-7) y de la QA (QA-1 a QA-10, todas aplicadas). Se entrega en dos cortes (§1.2). El cambio C-1 (QR reutilizado y monto distinto en el corte M0) se aprobó y aplicó el 2026-11-14 (§8.2).
 - **Rama**: `feature/18-backend-mvp`
 - **Issues**: #18 (estructura), #62 (crear cobro), #63 (aviso de pago), #65 (despliegue, solo como dependencia)
 - **Entrada**: "iniciemos la entrevista y preparativos de la redaccion de la spec 001"
@@ -52,15 +52,13 @@ La spec se aprueba completa, pero se construye en dos cortes. Cada historia, esc
 
 | Corte | Fecha | Qué entrega |
 |---|---|---|
-| **Corte M0** | 15 nov, 1:00 PM (kickoff) | Cobro de monto fijo, aviso del primer pago con firma y deduplicación, consulta de respaldo (también la que hace el servidor por su cuenta), canal de avisos, protección de la demo pública y salud. |
-| **Corte 2** | Antes del 21 nov (inicio de M2) | QR reutilizado (varios pagos numerados), monto distinto visible, ventana de gracia de 10 minutos, monto libre y cancelación. |
+| **Corte M0** | 15 nov, 1:00 PM (kickoff) | Cobro de monto fijo, aviso de cada pago con firma, deduplicación y su número (QR reutilizado), monto distinto visible, consulta de respaldo (también la que hace el servidor por su cuenta), canal de avisos, protección de la demo pública y salud. |
+| **Corte 2** | Antes del 21 nov (inicio de M2) | Ventana de gracia de 10 minutos, monto libre y cancelación. (El QR reutilizado y el monto distinto visible pasaron al corte M0 con C-1.) |
 
 **Comportamiento temporal del corte M0**, mientras no llega el corte 2. Cada punto deja de valer al entregar el corte 2:
 
 - Un monto vacío o 0 se rechaza como monto no válido, porque todavía no hay monto libre.
 - La ventana de escucha termina al vencer el QR, sin los 10 minutos de gracia.
-- Solo el primer pago de cada cobro se registra y se avisa; los siguientes quedan en el registro con una advertencia, para no perder su rastro (principio VIII).
-- Un pago por un monto distinto se registra con el monto recibido y deja una advertencia, pero el cobro todavía no muestra ambos montos.
 - No hay cancelación.
 
 ---
@@ -85,7 +83,7 @@ La spec se aprueba completa, pero se construye en dos cortes. Cada historia, esc
 
 ---
 
-### Historia 2 — Saber que me pagaron (Prioridad: P1) · Corte M0 (escenarios 2 y 6: corte 2)
+### Historia 2 — Saber que me pagaron (Prioridad: P1) · Corte M0
 
 **Como** dueño, **quiero** enterarme de cada pago en cuanto ocurre, **para** entregar el producto sin revisar capturas ni la app de mi banco.
 
@@ -96,11 +94,11 @@ La spec se aprueba completa, pero se construye en dos cortes. Cada historia, esc
 **Escenarios de aceptación:**
 
 1. *(M0)* **Dado** un cobro *pendiente* con el canal de avisos abierto, **cuando** llega un aviso de pago de pey con firma válida para ese cobro, **entonces** el cobro pasa a *pagado* y el canal recibe el pago con su número (1), el monto recibido y su hora.
-2. *(Corte 2)* **Dado** un cobro ya *pagado* cuyo QR se reutiliza, **cuando** llega un pago con otra transacción, **entonces** el canal recibe un aviso nuevo con el número de pago 2 y el total recibido.
+2. *(M0)* **Dado** un cobro ya *pagado* cuyo QR se reutiliza, **cuando** llega un pago con otra transacción, **entonces** el canal recibe un aviso nuevo con el número de pago 2 y el total recibido.
 3. *(M0)* **Dado** un aviso de pago sin firma, con firma de otro secreto o con firma vencida, **cuando** llega al servidor, **entonces** se rechaza y ningún cobro cambia.
 4. *(M0)* **Dado** un pago ya registrado, **cuando** pey reenvía su aviso o la consulta de respaldo lo vuelve a encontrar, **entonces** se le responde bien a pey pero el pago no se registra dos veces ni se vuelve a avisar.
 5. *(M0)* **Dado** un cobro que ya recibió pagos, **cuando** la pantalla abre su canal de avisos, **entonces** recibe de inmediato el estado actual con el número de pagos y el total recibido.
-6. *(Corte 2)* **Dado** un cobro de monto fijo, **cuando** pey reporta un pago cuyo monto base es distinto al pedido, **entonces** el aviso muestra el monto pedido y el monto realmente recibido.
+6. *(M0)* **Dado** un cobro de monto fijo, **cuando** pey reporta un pago cuyo monto base es distinto al pedido, **entonces** el aviso muestra el monto pedido y el monto realmente recibido.
 
 ---
 
@@ -195,12 +193,12 @@ Cada RF lleva su corte: **[M0]** para el kickoff o **[C2]** para el corte 2 (§1
 - **RF-012** (Dirigido por evento) [M0]: CUANDO llega un aviso de pago de pey con firma válida, EL SISTEMA registrará el pago en el cobro al que corresponde el QR.
 - **RF-013** (No deseado) [M0]: SI llega un aviso de pey de un tipo distinto a "QR pagado", ENTONCES EL SISTEMA le responderá bien a pey y lo ignorará.
 - **RF-014** (Ubicuo) [M0]: EL SISTEMA registrará cada transacción pagada de pey una sola vez, aunque pey reenvíe el aviso o la consulta de respaldo la vuelva a encontrar.
-- **RF-015** (Ubicuo) [C2]: EL SISTEMA registrará como pago nuevo, sin límite de cantidad, cada transacción pagada distinta que reciba el QR de un cobro.
-- **RF-016** (Ubicuo) [C2]: EL SISTEMA asignará a cada pago su número dentro del cobro, en orden de registro: 1, 2, 3…
+- **RF-015** (Ubicuo) [M0]: EL SISTEMA registrará como pago nuevo, sin límite de cantidad, cada transacción pagada distinta que reciba el QR de un cobro.
+- **RF-016** (Ubicuo) [M0]: EL SISTEMA asignará a cada pago su número dentro del cobro, en orden de registro: 1, 2, 3…
 - **RF-017** (Dirigido por evento) [M0]: CUANDO un cobro sin pagos (*pendiente*, *vencido* o *cancelado*) recibe su primer pago, EL SISTEMA lo pasará a *pagado*.
 - **RF-018** (Ubicuo) [M0]: EL SISTEMA guardará de cada pago el monto recibido, el monto base cuando pey lo reporte, su hora y su identificador de transacción.
-- **RF-019** (No deseado) [C2]: SI un pago de un cobro de monto fijo tiene un monto base distinto al pedido (o un monto recibido distinto, cuando pey no reporta el monto base), ENTONCES EL SISTEMA mostrará el monto pedido y el monto recibido en el cobro y en el aviso.
-- **RF-020** (No deseado) [C2]: SI un pago de un cobro de monto fijo tiene un monto base distinto al pedido (o un monto recibido distinto, cuando pey no reporta el monto base), ENTONCES EL SISTEMA dejará una advertencia en el registro.
+- **RF-019** (No deseado) [M0]: SI un pago de un cobro de monto fijo tiene un monto base distinto al pedido (o un monto recibido distinto, cuando pey no reporta el monto base), ENTONCES EL SISTEMA mostrará el monto pedido y el monto recibido en el cobro y en el aviso.
+- **RF-020** (No deseado) [M0]: SI un pago de un cobro de monto fijo tiene un monto base distinto al pedido (o un monto recibido distinto, cuando pey no reporta el monto base), ENTONCES EL SISTEMA dejará una advertencia en el registro.
 
 **Vigencia, vencimiento y cancelación**
 
@@ -256,8 +254,8 @@ Cada RF lleva su corte: **[M0]** para el kickoff o **[C2]** para el corte 2 (§1
 | **Pago tardío** (hasta 10 minutos después de vencer) | Desde el corte 2, pasa a *pagado* y se avisa por el canal, igual que un pago a tiempo (principio VIII). En el corte M0, si llega por el aviso de pey, pasa a *pagado* pero el canal ya está cerrado. | RF-017, RF-022 |
 | Pago después de la ventana de escucha | Si llega por el aviso de pey, se registra en el cobro y queda en el registro, pero el canal ya está cerrado y la consulta de respaldo ya no pregunta a pey. | RF-012, RF-025, RF-032 |
 | Abrir el canal después de la ventana de escucha | Emite el estado actual y se cierra de inmediato. | RF-043 |
-| **QR reutilizado** (varios pagos al mismo QR) | Desde el corte 2, cada transacción pagada distinta es un pago nuevo: se registra, se numera y se avisa, sin límite. En el corte M0, solo el primero se avisa y los siguientes quedan en el registro con una advertencia. | RF-015, RF-016, RF-029 |
-| **Monto distinto** en un cobro de monto fijo | Con monto fijo el banco cobra exactamente lo pedido, así que no debería ocurrir. Se compara el monto base (o el recibido, si pey no da el desglose); si difiere, se registra, el aviso muestra ambos montos (corte 2) y queda una advertencia. Una propina o comisión reportada en el desglose no cuenta como monto distinto. | RF-018, RF-019, RF-020 |
+| **QR reutilizado** (varios pagos al mismo QR) | Cada transacción pagada distinta es un pago nuevo: se registra, se numera y se avisa, sin límite (desde el corte M0, C-1). | RF-015, RF-016, RF-029 |
+| **Monto distinto** en un cobro de monto fijo | Con monto fijo el banco cobra exactamente lo pedido, así que no debería ocurrir. Se compara el monto base (o el recibido, si pey no da el desglose); si difiere, se registra, el aviso muestra ambos montos y queda una advertencia. Una propina o comisión reportada en el desglose no cuenta como monto distinto. | RF-018, RF-019, RF-020 |
 | Monto 0 o vacío | Desde el corte 2, crea un cobro de monto libre. En el corte M0, se rechaza como monto no válido. | RF-003, RF-004 |
 | Cobro de monto libre | No hay monto pedido: el aviso muestra lo que el cliente pagó. No aplica "monto distinto". | RF-003, RF-029 |
 | Concepto con caracteres no imprimibles | Se rechaza con un mensaje para el dueño, sin pedirle nada a pey. | RF-042 |
@@ -304,7 +302,7 @@ Cada RF lleva su corte: **[M0]** para el kickoff o **[C2]** para el corte 2 (§1
 - **CE-003** [M0]: el canal de avisos recibe cada pago en menos de 2 segundos después de que pey entrega su aviso.
 - **CE-004** [M0]: el 100 % de los avisos de pago sin firma válida se rechazan sin cambiar ningún cobro, comprobado con pruebas automáticas.
 - **CE-005** [M0]: ninguna transacción se registra dos veces, comprobado con pruebas automáticas de reenvío del aviso y de consulta de respaldo.
-- **CE-006** [C2]: dos transacciones distintas al mismo QR producen dos avisos con números de pago 1 y 2 y el total correcto, comprobado con pruebas automáticas.
+- **CE-006** [M0]: dos transacciones distintas al mismo QR producen dos avisos con números de pago 1 y 2 y el total correcto, comprobado con pruebas automáticas.
 - **CE-007** [C2]: un pago que llega 5 minutos después del vencimiento se avisa por el canal, comprobado con pruebas automáticas con reloj controlado.
 - **CE-008** [M0]: sin aviso de pey y con el canal abierto, un pago se avisa a más tardar 5 segundos después de que pey lo reporta en su consulta, sin que la pantalla consulte nada, comprobado con pruebas automáticas con reloj controlado.
 - **CE-009** [M0]: ningún archivo del repositorio, respuesta ni registro contiene la llave de pey o el secreto del aviso.
@@ -361,7 +359,11 @@ Cada RF lleva su corte: **[M0]** para el kickoff o **[C2]** para el corte 2 (§1
 
 ### 8.2 Cambios a otras specs
 
-No hay specs previas.
+No hay specs previas. Cambios a **esta** spec después de aprobada:
+
+| # | Cambio | Por qué | Afecta | Estado |
+|---|---|---|---|---|
+| C-1 | El QR reutilizado (varios pagos numerados) y el monto distinto visible pasan del corte 2 al corte M0. Se quitan de §1.2 los puntos temporales "solo el primer pago se registra y se avisa" y "el cobro todavía no muestra ambos montos". | QT-3 de `tasks.md`: con la regla temporal, el segundo pago a un QR no se avisaba, en choque con el principio VIII ("se registra… y se avisa"). Hugo prefirió adelantar el QR reutilizado a registrar una excepción temporal. | §1.2, historia 2 (escenarios 2 y 6), RF-015, RF-016, RF-019, RF-020, §4 (QR reutilizado y monto distinto), CE-006; QA-1 queda modificada en ese punto | Aprobado y aplicado por Hugo el 2026-11-14 |
 
 ### 8.3 Propuestas
 

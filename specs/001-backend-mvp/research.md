@@ -108,6 +108,7 @@ Cada sección sigue el formato de spec-kit: **Decisión**, **Por qué** y **Alte
 
 - **Decisión**: la app configura el registro `pago_facil` en nivel INFO, con su propio formato, al crearse, salvo que las pruebas lo desactiven.
   - Cada mensaje incluye el id del cobro y, en los errores de pey, el `requestId`.
+  - Cada interacción con pey deja una línea `INFO`: cada QR creado (id y `codi_qr_id`) y cada consulta (id del cobro, páginas pedidas y pagos nuevos), con `requestId` cuando pey lo mande (principio X, QT-4).
   - Nunca incluye la llave, el secreto, cabeceras de autorización ni el cuerpo completo del aviso.
 - **Por qué**: hoy los mensajes INFO no se ven al correr uvicorn (`logging` sin configurar).
 

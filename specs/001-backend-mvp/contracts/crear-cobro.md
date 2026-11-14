@@ -53,7 +53,7 @@ Es el mismo en todas las respuestas que devuelven un cobro y en los eventos del 
 | `numero_de_pagos` | entero | RF-008 |
 | `total_recibido` | número | RF-008 |
 | `pagado_en` | entero (Unix) o `null`: hora del último pago | RF-008 |
-| `pagos` | lista de [objeto pago](#objeto-pago) | RF-018, RF-019 (C2) |
+| `pagos` | lista de [objeto pago](#objeto-pago) | RF-018, RF-019 |
 
 <a id="objeto-pago"></a>
 ### Objeto pago
@@ -62,7 +62,7 @@ Es el mismo en todas las respuestas que devuelven un cobro y en los eventos del 
 |---|---|---|
 | `numero` | entero | RF-016 |
 | `monto_recibido` | número | RF-018 |
-| `monto_distinto` | booleano | RF-019 (en el corte M0 siempre se calcula, pero la web lo usa desde el corte 2) |
+| `monto_distinto` | booleano | RF-019 |
 | `pagado_en` | entero (Unix) | RF-018 |
 
 El objeto pago no expone el `transaccion_id` de pey ni ningún dato bancario del pagador.

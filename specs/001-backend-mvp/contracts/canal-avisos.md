@@ -47,7 +47,7 @@ Cada evento lleva `event:` y `data:` (JSON). Primero se envía `retry: 3000`.
    - si el estado pasó a *vencido* desde la última vuelta, emite `vencido`;
    - si pasaron 5 s desde la última consulta a pey de ese cobro, consulta con `ConsultaDeRespaldo` (RF-040, QP-7), comparte el límite con la consulta al ver el cobro y avisa lo nuevo. La consulta espera como máximo 4 s (QP-1), así que una vuelta nunca dura más de unos 9 s;
    - si pasaron 15 s sin enviar nada, manda la señal de vida.
-4. Al terminar la ventana: emite `fin` y cierra (RF-032).
+4. Al terminar la ventana: emite `fin` y cierra (RF-032). Si el cobro vence en el mismo instante en que termina la ventana (gracia 0, corte M0), emite primero `vencido` y después `fin` (QT-6).
 5. Al desconectarse o terminar: libera el lugar del canal en el conteo de la IP.
 
 ## 5. Ejemplo

@@ -21,7 +21,7 @@
 | `expira_en` | entero (Unix) | `creado_en + 600` | RF-006, RF-021 |
 | `fin_ventana` | entero (Unix) | `expira_en + GRACIA` (0 en el corte M0, 600 desde el corte 2) | RF-022, RF-032 |
 | `cancelado_en` | entero o vacío | Hora de la cancelación (corte 2) | RF-023 |
-| `pagos` | lista de Pago | En orden de registro. En el corte M0, como máximo uno | RF-015, RF-016 |
+| `pagos` | lista de Pago | En orden de registro, sin límite (desde el corte M0, C-1) | RF-015, RF-016 |
 | `ultima_consulta_pey` | número | Hora de la última consulta de respaldo; no se publica | RF-025, RF-040 |
 
 **Calculados** (no se guardan):
@@ -72,7 +72,7 @@ pendiente ─────────────→ pagado ←─────�
 | *pendiente* | *cancelado* | El negocio cancela (corte 2) | RF-023 |
 | *vencido* | *pagado* | Primer pago (pago tardío) | RF-017, RF-022 |
 | *cancelado* | *pagado* | Primer pago al QR cancelado | RF-017 |
-| *pagado* | *pagado* | Pago siguiente (corte 2): se agrega a `pagos` sin cambiar de estado | RF-015 |
+| *pagado* | *pagado* | Pago siguiente: se agrega a `pagos` sin cambiar de estado | RF-015 |
 
 - No hay transición de *pagado* a ningún otro estado.
 - Cancelar un cobro que no está *pendiente* se rechaza (RF-024).
@@ -81,10 +81,9 @@ pendiente ─────────────→ pagado ←─────�
 ## 4. Registro de pagos (reglas)
 
 1. Un `transaccion_id` ya visto se ignora, venga del aviso o de la consulta (RF-014).
-2. **Corte M0**: si el cobro ya tiene un pago, el nuevo no se agrega; queda una advertencia en el registro con el `transaccion_id` (comportamiento temporal de §1.2 de la spec).
-3. **Corte 2**: se agrega con `numero = len(pagos) + 1` (RF-015, RF-016).
-4. Si `monto_distinto`, se deja una advertencia (RF-020); en el corte 2 se publica también (RF-019).
-5. Cada pago agregado publica el evento `pago` en el canal del cobro (RF-029).
+2. Si no, se agrega con `numero = len(pagos) + 1` (RF-015, RF-016), desde el corte M0 (C-1).
+3. Si `monto_distinto`, se deja una advertencia (RF-020) y se publica en el pago (RF-019).
+4. Cada pago agregado publica el evento `pago` en el canal del cobro (RF-029).
 
 ## 5. Repositorio en memoria
 

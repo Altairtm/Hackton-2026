@@ -3,7 +3,7 @@
 - **Rama**: `feature/18-backend-mvp`
 - **Fecha**: 2026-11-14
 - **Spec**: [spec.md](spec.md), estado: Aprobada el 2026-11-14
-- **Estado del plan**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de decidir DP-1 a DP-3 y la QA (QP-1 a QP-7, aplicadas). El siguiente paso es `/speckit-tasks`, cuando Hugo lo pida.
+- **Estado del plan**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de decidir DP-1 a DP-3 y la QA (QP-1 a QP-7, aplicadas). Ajustado el 2026-11-14 por el cambio C-1 de la spec y la QA de tasks (QT-3, QT-4, QT-6; §14).
 - **Entrada**: la spec de `specs/001-backend-mvp/spec.md`
 
 > **Notas para los comandos de spec-kit.**
@@ -84,7 +84,7 @@ No quedan `[NECESITA ACLARACIÓN]`: las tres decisiones abiertas son de Hugo (§
 | V. Pruebas primero, en todo | Cada tarea tiene su prueba antes; `RelojFalso` y pey simulado; nombres en español (§7) | Cumple |
 | VI. CoDi real, reacción real | El cierre del corte M0 incluye el pago real de $0.01 con autorización de Hugo (quickstart, paso 4) | Cumple (depende de CoDi activo el 15 nov) |
 | VII. Pensado para el mostrador | Todos los errores son `{"detail": "<mensaje en español para el dueño>"}`, incluidos los de validación (R-7). La interfaz es de #64 | Cumple |
-| VIII. Un pago no prueba identidad ni entrega | Pagos tardíos, montos distintos, fallas de pey y devoluciones definidos en la spec §4; nunca se descarta un pago sin registro (corte M0: advertencia) | Cumple |
+| VIII. Un pago no prueba identidad ni entrega | Pagos tardíos, montos distintos, fallas de pey y devoluciones definidos en la spec §4; cada pago se registra y se avisa desde el corte M0 (C-1) | Cumple |
 | IX. Lo más simple que gane la demo | Sin dependencias de producción nuevas; consulta a pey dentro del canal, sin tareas de fondo. La única herramienta nueva (pytest-asyncio, solo de desarrollo) pasó por comparativa y la eligió Hugo (DP-2, R-3) | Cumple |
 | X. Si no se ve, no existe | Registro `pago_facil` configurado en INFO con id del cobro y `requestId` (R-9); `/salud` | Cumple |
 
@@ -100,7 +100,7 @@ No hay excepciones, así que §12 queda vacío.
 specs/001-backend-mvp/
 ├── spec.md               # Qué y por qué (entrevista y QA incluidas)
 ├── plan.md               # Este archivo
-├── research.md           # Fase 0: R-1 a R-10
+├── research.md           # Fase 0: R-1 a R-12
 ├── data-model.md         # Fase 1: cobro, pago, estados y límites
 ├── contracts/            # Fase 1: crear-cobro, ver-cobro, cancelar-cobro, canal-avisos, aviso-pey, salud
 ├── quickstart.md         # Fase 1: comprobación de punta a punta
@@ -131,7 +131,8 @@ backend/
     ├── test_canal.py            # (nuevo, con pytest-asyncio)
     ├── test_proteccion.py       # (nuevo)
     ├── test_salud_y_registros.py # (nuevo)
-    ├── test_modelo.py           # (nuevo) cobro, pagos y estados con reloj
+    ├── test_modelo.py           # (nuevo) reloj, cobro, pagos y estados
+    ├── test_cancelar_cobro.py   # (nuevo, corte 2) cancelación
     └── test_api.py              # (se reparte entre los anteriores y se borra con rm)
 ```
 
@@ -149,7 +150,7 @@ backend/
 | `pey.py` · `ClientePey.pagos_del_qr` | `GET /transaction/codi/qr/{id}` siguiendo `nextToken` solo mientras la página traiga transacciones que no están en el conjunto de vistas (QP-2); devuelve solo `PAID` como `PagoPey(id, monto, monto_base, pagado_en)`. Espera como máximo 4 s por petición (QP-1) | RF-014, RF-015, RF-025, R-6 |
 | `pey.py` · `ErrorPey` | Distingue sin llave, sin conexión, 401/403, 503 y otros, con `requestId` | RF-009, RF-010, RF-039 |
 | `cobros.py` · `Cobro`, `Pago` | Datos del cobro, `estado(ahora)`, `en_ventana(ahora)`, totales y `publico()` según el [objeto cobro](contracts/crear-cobro.md#objeto-cobro) | RF-008, RF-017, RF-021, RF-022, data-model §1–3 |
-| `cobros.py` · `RepositorioCobros.registrar_pago` | Única puerta para agregar pagos: deduplica por transacción, aplica la regla del corte, calcula `monto_distinto` y devuelve el pago nuevo o nada | RF-014, RF-015, RF-016, RF-017, RF-018, RF-019, RF-020 |
+| `cobros.py` · `RepositorioCobros.registrar_pago` | Única puerta para agregar pagos: deduplica por transacción, numera cada pago nuevo (C-1), calcula `monto_distinto` y devuelve el pago nuevo o nada | RF-014, RF-015, RF-016, RF-017, RF-018, RF-019, RF-020 |
 | `cobros.py` · `RepositorioCobros.cancelar` | Solo desde *pendiente* (C2) | RF-023, RF-024 |
 | `eventos.py` · `Difusor` | Colas por cobro; `publicar(cobro_id, evento, datos)` | RF-029, RF-030 |
 | `eventos.py` · `LimitePorIp` | 10 cobros por minuto por IP del cliente, ventana deslizante con `Reloj` | RF-034 |
@@ -214,10 +215,10 @@ Detalle en [data-model.md](data-model.md). En resumen:
 | RF-012, RF-017 | `test_un_aviso_valido_registra_el_pago_y_pasa_el_cobro_a_pagado` | integración |
 | RF-013 | `test_un_aviso_de_otro_tipo_se_ignora` | integración |
 | RF-014, CE-005 | `test_el_mismo_pago_no_se_registra_dos_veces_por_aviso_ni_por_consulta` | integración |
-| RF-015, RF-016, CE-006 (C2) | `test_un_qr_reutilizado_registra_y_numera_cada_pago` | unitaria e integración |
-| Corte M0, §1.2 | `test_en_el_corte_m0_un_segundo_pago_queda_en_el_registro_sin_avisarse` | integración |
+| RF-015, RF-016, CE-006 | `test_un_qr_reutilizado_registra_y_numera_cada_pago`, `test_el_canal_avisa_cada_pago_con_su_numero_y_el_total` | unitaria, integración y async |
+| RF-012, RF-032 (QT-5) | `test_un_aviso_despues_de_la_ventana_registra_el_pago` | integración |
 | RF-018 | `test_el_pago_guarda_monto_recibido_base_hora_y_transaccion` | unitaria |
-| RF-019, RF-020 (C2) | `test_un_monto_base_distinto_se_marca_y_deja_advertencia`, `test_una_propina_no_cuenta_como_monto_distinto` | unitaria |
+| RF-019, RF-020 | `test_un_monto_base_distinto_se_marca_y_deja_advertencia`, `test_una_propina_no_cuenta_como_monto_distinto` | unitaria |
 | RF-021 | `test_un_cobro_sin_pagos_vence_a_los_10_minutos` | unitaria |
 | RF-022, CE-007 (C2) | `test_un_pago_5_minutos_despues_de_vencer_se_avisa_por_el_canal` | async |
 | RF-023, RF-024 (C2) | `test_cancelar_un_cobro_pendiente`, `test_no_se_puede_cancelar_un_cobro_pagado_o_vencido`, `test_un_cobro_cancelado_que_se_paga_pasa_a_pagado` | integración |
@@ -227,10 +228,10 @@ Detalle en [data-model.md](data-model.md). En resumen:
 | RF-027 | `test_si_pey_no_responde_se_devuelve_el_ultimo_estado` | integración |
 | RF-028, RF-031 | `test_el_canal_emite_el_estado_al_abrirse` | async |
 | RF-029, CE-003 | `test_el_canal_avisa_el_pago_en_cuanto_se_registra` | async |
-| RF-030 | `test_el_canal_avisa_vencido_en_menos_de_15_segundos` | async |
+| RF-030 | `test_el_canal_avisa_vencido_en_menos_de_15_segundos`, `test_con_gracia_0_el_canal_emite_vencido_y_luego_fin` (QT-6) | async |
 | RF-032 | `test_el_canal_emite_fin_y_se_cierra_al_terminar_la_ventana` | async |
 | RF-033 | `test_el_canal_manda_senal_de_vida_cada_15_segundos` | async |
-| RF-040, CE-008 | `test_con_el_canal_abierto_el_servidor_pregunta_a_pey_cada_5_segundos` | async |
+| RF-040, CE-008 | `test_con_el_canal_abierto_el_servidor_pregunta_a_pey_cada_5_segundos`, `test_sin_secreto_el_canal_avisa_el_pago_por_la_consulta` (QT-5) | async |
 | RF-041 | `test_una_ip_no_puede_abrir_mas_de_10_canales` | async e integración |
 | RF-043 | `test_abrir_el_canal_despues_de_la_ventana_emite_estado_y_fin` | integración |
 | RF-034 | `test_limite_de_cobros_por_ip`, `test_el_limite_usa_la_ip_real_detras_del_proxy` | integración |
@@ -238,7 +239,7 @@ Detalle en [data-model.md](data-model.md). En resumen:
 | RF-036, CE-009 | `test_la_llave_y_el_secreto_no_aparecen_en_respuestas_ni_registros`, más un paso manual con `git grep` de patrones de llaves en los archivos versionados (QP-6) | integración y manual |
 | RF-037 | `test_sin_secreto_configurado_todo_aviso_se_rechaza` | integración |
 | RF-038 | `test_salud_dice_que_credenciales_faltan_sin_mostrarlas` | integración |
-| RF-039 | `test_los_registros_dejan_cobro_error_de_pey_pago_y_aviso_ignorado` | integración |
+| RF-039 | `test_los_registros_dejan_cobro_error_de_pey_pago_y_aviso_ignorado`, `test_cada_consulta_a_pey_deja_una_linea_en_el_registro` (QT-4) | integración |
 | CE-010 | `test_el_aviso_de_pey_no_hace_peticiones_a_pey` (prueba por estructura: el pey simulado no recibe nada durante el aviso), más una medición manual con `curl -w '%{time_total}'` en la guía de verificación (QP-6) | integración y manual |
 | R-8 | `test_un_aviso_que_falla_al_procesarse_se_acepta_en_el_reintento` | integración |
 | CE-001, CE-002 | Pago real de $0.01 desde la URL pública (quickstart, paso 4); en F3 se mide el tiempo de crear el QR con la imagen (QP-3) | manual |
@@ -250,15 +251,16 @@ Detalle en [data-model.md](data-model.md). En resumen:
 | Fase | Fechas | Quién | Qué | Depende de |
 |---|---|---|---|---|
 | F1 Preparación | 14 nov, noche | Claude (revisa Hugo) | `reloj.py`, `conftest.py` (PeySimulado, RelojFalso, firmas), reparto de `test_api.py`, configuración nueva, agregar pytest-asyncio (DP-2) | Plan y tasks aprobados |
-| F2 Base | 14–15 nov | Claude (revisa Hugo) | Modelo `Cobro`/`Pago` con reloj; `registrar_pago` con la regla del corte M0; cliente de pey paginado; errores en español; registros configurados | F1 |
+| F2 Base | 14–15 nov | Claude (revisa Hugo) | Modelo `Cobro`/`Pago` con reloj; `registrar_pago` con pagos numerados y monto distinto (C-1); cliente de pey paginado; errores en español; registros configurados | F1 |
 | F3 Historia 1 (M0) | 15 nov, mañana | Claude (revisa Hugo) | Crear cobro de monto fijo: validaciones, concepto, errores de pey | F2 |
-| F4 Historias 2 y 3 (M0) | 15 nov, mañana | Claude (revisa Hugo) | Aviso de pey (firma, deduplicación, R-8), ver cobro con respaldo, canal de avisos con consulta automática | F3 |
-| F5 Historias 5 y 6 (M0) | 15 nov, antes de las 10:00 | Claude (revisa Hugo) | IP real, límite de canales, CORS, salud, secretos en registros, `backend/README.md` con el contrato nuevo (QP-4). **Cierre del corte M0**, con el pago real de $0.01 | F4, CoDi activo |
-| F6 QR reutilizado y monto distinto (C2) | 16–18 nov | Por repartir tras el kickoff | Varios pagos numerados, comparación con el monto base, advertencias | F5 |
-| F7 Ventana de gracia (C2) | 18–19 nov | Por repartir tras el kickoff | `GRACIA_SEGUNDOS = 600`, pagos tardíos por el canal | F6 |
-| F8 Monto libre (C2) | 19–20 nov | Por repartir tras el kickoff | Monto vacío o 0 → `amount: 0` en pey | F5 |
-| F9 Cancelación (C2) | 20 nov | Por repartir tras el kickoff | `POST /api/cobros/{id}/cancelar` y evento `cancelado` | F5 |
-| FN Pulido | 21 nov | Por repartir tras el kickoff | `backend/README.md` con lo del corte 2, revisión de seguridad y quickstart completo | F6–F9 |
+| F4 Historias 2 y 3 (M0) | 15 nov, mañana | Claude (revisa Hugo) | Aviso de pey (firma, deduplicación, R-8, QR reutilizado), ver cobro con respaldo, canal de avisos con consulta automática | F3 |
+| F5 Historias 5 y 6 (M0) | 15 nov, antes de las 10:00 | Claude (revisa Hugo) | IP real, límite de canales, CORS, salud, secretos en registros, `backend/README.md` con el contrato nuevo (QP-4). Revisión de seguridad (QT-7). **Cierre del corte M0**, con el pago real de $0.01 y un segundo pago al mismo QR | F4, CoDi activo |
+| F6 Ventana de gracia (C2) | 16–18 nov | Por repartir tras el kickoff | `GRACIA_SEGUNDOS = 600`, pagos tardíos por el canal; pago real (QT-2) | F5 |
+| F7 Monto libre (C2) | 18–19 nov | Por repartir tras el kickoff | Monto vacío o 0 → `amount: 0` en pey; pago real (QT-2) | F5 |
+| F8 Cancelación (C2) | 19–20 nov | Por repartir tras el kickoff | `POST /api/cobros/{id}/cancelar` y evento `cancelado`; pago real a un QR cancelado (QT-2) | F5 |
+| FN Pulido | 21 nov | Por repartir tras el kickoff | `backend/README.md` con lo del corte 2, revisión de seguridad y quickstart completo | F6–F8 |
+
+El QR reutilizado y el monto distinto, que eran la F6 del corte 2, pasaron a F2 y F4 con el cambio C-1.
 
 El despliegue (#65) y la pantalla (#64) no son fases de este plan, pero el cierre de F5 depende de ellos para CE-001. Lo que necesita el despliegue está en la sección "Despliegue" del [quickstart](quickstart.md) (QP-5). Hugo avisa hoy al equipo de la web que el contrato está en [contracts/](contracts/) (QP-4).
 
@@ -379,4 +381,6 @@ Sin excepciones a la constitución.
 
 | # | Fecha | Qué | Por qué | Afecta |
 |---|---|---|---|---|
-| — | — | Sin entradas todavía | — | — |
+| TK-1 | 2026-11-14 | Cambio C-1: el QR reutilizado y el monto distinto pasan al corte M0. `registrar_pago` numera cada pago desde F2; se quita la regla temporal "solo el primer pago"; la antigua F6 se reparte entre F2 y F4 y las fases del corte 2 se renumeran (F6 gracia, F7 monto libre, F8 cancelación) | QT-3 de tasks: evitar el choque temporal con el principio VIII | spec §1.2, RF-015, RF-016, RF-019, RF-020, CE-006; data-model §1 y §4; contrato aviso-pey; §7 y §8 de este plan; tasks |
+| TK-2 | 2026-11-14 | Una línea `INFO` por cada consulta a pey y por cada QR creado (QT-4); con gracia 0 el canal emite `vencido` y luego `fin` (QT-6) | Principio X; contrato del canal | research R-9; contrato canal-avisos; tasks T020, T023, T026, T029 |
+| TK-3 | 2026-11-14 | Enmienda PATCH pendiente de la constitución II: "la única puerta que registra cada pago" (QT-1) | Avisar cada pago de un QR reutilizado | Constitución, cuando Hugo pida `/speckit-constitution` |
