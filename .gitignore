@@ -1,0 +1,35 @@
+# Secretos: nunca al repositorio
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+*.sqlite3
+*.db
+
+# Node / web
+node_modules/
+dist/
+build/
+.cache/
+
+# Editores y sistema
+.vscode/
+.idea/
+.cursor/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
