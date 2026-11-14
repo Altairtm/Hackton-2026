@@ -20,6 +20,7 @@ Un **punto de venta sencillo para negocios** que cobra con CoDi:
 | Fecha | Qué pasa |
 |---|---|
 | 14 nov 2026 | Arranque y kickoff presencial (opcional) |
+| **15 nov, 1:00 PM** | **Entrega del kickoff (formulario de Luma): nombre y descripción, repo público, app en vivo, video opcional y correos** |
 | ≤ 30 nov | Publicación de bounties de patrocinadores |
 | **10 dic, 23:59** | Cierre de postulación (último día para cambiar integrantes) |
 | **12 dic, 23:59** | **Cierre de entregas, sin prórroga** |
@@ -78,7 +79,7 @@ No hay sandbox: se prueba en producción con cobros de **$0.01 MXN**.
 | Dimensión | Herramienta | Valores |
 |---|---|---|
 | Área | Épicas + etiqueta `area:` | frontend, ux-ui, backend, base-de-datos, integraciones, seguridad, devops, producto |
-| Tiempo | Milestones | M1–M4 |
+| Tiempo | Milestones | M0–M4 |
 | Tipo | Etiqueta `tipo:` | funcionalidad, tarea, investigación, documentación, bug |
 | Urgencia | Etiqueta `prioridad:` | alta, media, baja |
 | Extras | Etiqueta `opcional` | Bot de WhatsApp, pitch deck… |
@@ -87,6 +88,7 @@ No hay sandbox: se prueba en producción con cobros de **$0.01 MXN**.
 
 | Milestone | Fechas | Meta |
 |---|---|---|
+| M0 — Entrega kickoff | 14–15 nov (1:00 PM) | MVP en vivo (QR + webhook + sonido) con la CLABE de prueba de pey, repo público y formulario de Luma enviado |
 | M1 — Arranque y cuenta pey | 14–20 nov | Equipo, titular de la API key, cuenta CoDi en trámite, entorno y diseño |
 | M2 — Cobro CoDi funcionando | 21 nov–1 dic | QR real, webhook, sonido y aviso visual, desplegado con HTTPS |
 | M3 — Extras y monetización | 2–7 dic | Cupones, historial, Premium, pilotos, *(opcional)* bot de WhatsApp |
