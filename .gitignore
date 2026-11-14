@@ -17,6 +17,7 @@ venv/
 *.egg-info/
 *.sqlite3
 *.db
+.tmp/
 
 # Node / web
 node_modules/

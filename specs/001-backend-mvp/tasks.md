@@ -3,7 +3,7 @@
 - **Spec**: [spec.md](spec.md), estado: Aprobada el 2026-11-14, con el cambio C-1 aplicado el mismo día
 - **Plan**: [plan.md](plan.md), estado: Aprobado el 2026-11-14, ajustado por TK-1 y TK-2 (§14)
 - **Fecha**: 2026-11-14
-- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de `/speckit-analyze` y de la QA (QT-1 a QT-7, aplicadas, con el cambio C-1 a la spec). El siguiente paso es `/speckit-implement` por fases (F1 primero), cuando Hugo lo pida.
+- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de `/speckit-analyze` y de la QA (QT-1 a QT-7, aplicadas, con el cambio C-1 a la spec). F1 terminada (Grok, 2026-11-14). El siguiente paso es F2, cuando Hugo lo pida.
 - **Entrada**: los documentos de `specs/001-backend-mvp/`: plan.md, spec.md, research.md, data-model.md, contracts/ y quickstart.md
 
 > **Notas para los comandos de spec-kit.**
@@ -68,35 +68,35 @@
 
 **Propósito**: reloj inyectable, pey simulado compartido, firmas de prueba, configuración nueva y pytest-asyncio, sin cambiar el comportamiento del prototipo.
 
-- [ ] T001 Agregar pytest-asyncio 1.4.1 como dependencia de desarrollo en `backend/pyproject.toml` y `backend/uv.lock`
+- [X] T001 Agregar pytest-asyncio 1.4.1 como dependencia de desarrollo en `backend/pyproject.toml` y `backend/uv.lock`
   - Comando: `cd backend && uv add --dev "pytest-asyncio==1.4.1"`. Es la versión más nueva publicada el 2026-10-31 o antes (salió el 2026-10-25; `1.4.1.post1` y `1.5.0` tienen menos de dos semanas, DP-2). Sin `pip install`.
   - **RF**: — (DP-2, principio V)
   - **Dep.**: ninguna
   - **Hecho cuando**: `uv run --directory backend pytest -q` sigue en `15 passed` y la versión, con su fecha de publicación, queda anotada para la sección F1 de la guía de verificación.
-- [ ] T002 [P] Escribir las pruebas del reloj en `backend/tests/test_modelo.py` (archivo nuevo)
+- [X] T002 [P] Escribir las pruebas del reloj en `backend/tests/test_modelo.py` (archivo nuevo)
   - `test_el_reloj_falso_avanza_solo_cuando_se_le_pide`: `RelojFalso(inicio=1_794_700_000)`; `ahora()` no cambia hasta `avanzar(10)`.
   - `test_dormir_con_el_reloj_falso_adelanta_el_tiempo_sin_esperar` (`@pytest.mark.asyncio`): `await reloj.dormir(5)` adelanta `ahora()` 5 s y la prueba tarda menos de 0.5 s reales.
   - **RF**: — (principio V; base de RF-021, RF-030, RF-034, RF-040)
   - **Dep.**: T001
   - **Hecho cuando**: las dos pruebas existen y fallan porque `app.reloj` no existe.
-- [ ] T003 [P] Escribir la prueba de la configuración nueva en `backend/tests/test_salud_y_registros.py` (archivo nuevo)
+- [X] T003 [P] Escribir la prueba de la configuración nueva en `backend/tests/test_salud_y_registros.py` (archivo nuevo)
   - `test_la_configuracion_tiene_los_valores_por_defecto_del_plan`: `proxies_confiables == "127.0.0.1"`, `gracia_segundos == 0`, `canales_por_ip == 10`, sin leer `backend/.env` (se construye `Configuracion(_env_file=None)`).
   - **RF**: RF-022, RF-034, RF-041
   - **Dep.**: ninguna
   - **Hecho cuando**: la prueba existe y falla porque faltan los campos.
-- [ ] T004 Implementar `Reloj` y `RelojFalso` en `backend/app/reloj.py` (archivo nuevo)
+- [X] T004 Implementar `Reloj` y `RelojFalso` en `backend/app/reloj.py` (archivo nuevo)
   - `Reloj.ahora() -> float` (segundos Unix, `time.time()`) y `async Reloj.dormir(segundos: float) -> None` (`asyncio.sleep`).
   - `RelojFalso(inicio: float)`: `ahora()`, `avanzar(segundos)` y `async dormir(segundos)`, que adelanta el tiempo y cede el control con `await asyncio.sleep(0)`, sin esperar.
   - Docstrings en español con los requisitos (spec 001, principio V).
   - **RF**: — (DP-4, R-2)
   - **Dep.**: T002
   - **Hecho cuando**: las pruebas de T002 pasan.
-- [ ] T005 [P] Agregar `proxies_confiables`, `gracia_segundos` y `canales_por_ip` en `backend/app/config.py` y documentarlos en `backend/.env.example`
+- [X] T005 [P] Agregar `proxies_confiables`, `gracia_segundos` y `canales_por_ip` en `backend/app/config.py` y documentarlos en `backend/.env.example`
   - Variables `PROXIES_CONFIABLES` (por defecto `127.0.0.1`), `GRACIA_SEGUNDOS` (por defecto `0` en el corte M0) y `CANALES_POR_IP` (por defecto `10`). En `.env.example`, solo los nombres y valores por defecto; nunca valores de secretos.
   - **RF**: RF-022, RF-034, RF-041
   - **Dep.**: T003
   - **Hecho cuando**: la prueba de T003 pasa.
-- [ ] T006 Crear `backend/tests/conftest.py` con el pey simulado, el reloj falso y las firmas, y agregar el parámetro `reloj` a `crear_app` en `backend/app/main.py`
+- [X] T006 Crear `backend/tests/conftest.py` con el pey simulado, el reloj falso y las firmas, y agregar el parámetro `reloj` a `crear_app` en `backend/app/main.py`
   - `PeySimulado` (sobre `httpx.MockTransport`): guarda cada petición recibida; respuestas configurables para `POST /codi/qr` (éxito con `id`, `qrString`, `qrImage`), `GET /transaction/codi/qr/{id}` (lista de páginas con `nextToken`), errores 401, 403, 503 y 500 con `requestId`, sin conexión (`httpx.ConnectError`) y tiempo agotado (`httpx.ReadTimeout`).
   - Fixtures: `reloj` (`RelojFalso`), `pey`, `configuracion` (llave y secreto falsos y distintivos, p. ej. `llave-falsa-NO-DEBE-SALIR` y `whsec_` + base64 de `secreto-falso-NO-DEBE-SALIR`), `app` y `cliente` (`TestClient`).
   - `firmar_aviso(cuerpo: str, secreto: str, webhook_id: str, momento: datetime) -> dict` con `standardwebhooks.Webhook(secreto).sign(webhook_id, momento, cuerpo)`, que recibe el cuerpo como **texto** (`data: str`); devuelve las cabeceras `webhook-id`, `webhook-timestamp` y `webhook-signature`. Permite firmar con una hora vieja para probar "fuera de tiempo".
@@ -104,13 +104,13 @@
   - **RF**: — (principio V; base de RF-011 y de todas las pruebas)
   - **Dep.**: T004, T005
   - **Hecho cuando**: `uv run --directory backend pytest -q` sigue en verde y ninguna petición sale a `api.pey.mx`.
-- [ ] T007 Repartir las 11 pruebas de `backend/tests/test_api.py` entre los archivos nuevos y borrar `test_api.py` con `rm`
+- [X] T007 Repartir las 11 pruebas de `backend/tests/test_api.py` entre los archivos nuevos y borrar `test_api.py` con `rm`
   - Destinos: `test_salud` → `test_salud_y_registros.py`; `test_crear_cobro_llama_a_pey_y_devuelve_el_qr`, `test_montos_invalidos_se_rechazan_sin_llamar_a_pey` y `test_error_de_pey_da_mensaje_claro_y_no_guarda_el_cobro` → `test_crear_cobro.py`; `test_limite_de_cobros_por_ip` → `test_proteccion.py`; `test_webhook_marca_pagado_y_no_duplica`, `test_webhook_sin_firma_valida_se_rechaza` y `test_webhook_de_cobro_desconocido_responde_200` → `test_aviso_pey.py`; `test_sin_webhook_el_estado_se_confirma_consultando_a_pey` y `test_cobro_inexistente_da_404` → `test_respaldo.py`; `test_eventos_emite_pagado_si_el_cobro_ya_se_pago` → `test_canal.py`.
   - Mismas aserciones; solo cambian a las fixtures de `conftest.py`. Las fases siguientes las reescriben al contrato nuevo.
   - **RF**: —
   - **Dep.**: T006
   - **Hecho cuando**: `backend/tests/test_api.py` ya no existe y `uv run --directory backend pytest -q` da `15 passed` más las 3 pruebas nuevas de F1 (18 en total).
-- [ ] T008 Cierre de F1: pruebas en verde, sección F1 en `specs/001-backend-mvp/verification-guide.md` (archivo nuevo) y commit sugerido
+- [X] T008 Cierre de F1: pruebas en verde, sección F1 en `specs/001-backend-mvp/verification-guide.md` (archivo nuevo) y commit sugerido
   - La guía dice cómo comprobar que el reloj falso no espera, que el pey simulado no sale a la red y qué versión de pytest-asyncio se fijó.
   - Commit sugerido: `test(001): preparar reloj inyectable, pey simulado y pytest-asyncio (F1)`.
 
