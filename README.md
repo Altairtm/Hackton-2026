@@ -32,6 +32,8 @@ Proyecto para el **Hackatón México 2026** (pey + AI Builders México + SpaceXA
 
 ## Reglas importantes
 
+Lee [docs/flujo-git-y-secretos.md](docs/flujo-git-y-secretos.md) antes de tu primer commit.
+
 - **Nunca** subas la API key de pey, secretos de webhook ni archivos `.env`. Usa `.env.example` como plantilla.
 - Una rama por issue, por ejemplo `feature/12-pantalla-cobro`, y se une con un pull request.
 - En pruebas usa solo datos propios o ficticios. Nunca uses CLABEs ni teléfonos de terceros.
