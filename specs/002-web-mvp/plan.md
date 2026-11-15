@@ -167,7 +167,7 @@ AGENTS.md                 # (cambia en F1) comando de las pruebas de la web en �
 | `teclado.js` · `cobrar_activo(texto)`, `monto_libre_activo(texto)` | Cobrar si el monto vale más de 0; Monto libre si está vacío o vale 0 | RF-006, RF-065 |
 | `cuenta.js` · `desfase(cobro, ahora)`, `restante(cobro, desfase, ahora)`, `formato(s)` | Segundos que le quedan al QR según la hora del servidor (C-2), y `m:ss`. Sin `hora_servidor`, desfase 0 y advertencia (R-6) | RF-018, RF-019, CE-009, CE-016 |
 | `avisados.js` · `Avisados` | Por cobro, el número de pago más alto ya avisado. `nuevos(cobro)` devuelve los pagos con número mayor y los marca. `marcar_todos(cobro)` marca sin avisar (recuperación) | RF-029, RF-053, RF-075, CE-008 |
-| `servidor.js` · `crear_cobro(monto, concepto)` | `POST /api/cobros` con `monto` número o `null` (Monto libre). 201 con imagen → cobro; 201 sin imagen → "No se pudo mostrar el QR. Intenta de nuevo." (RF-078); 422, 429, 502 o 503 → mensaje `detail`; fallo de red o 15 s sin respuesta → "Revisa tu conexión…" (el servidor espera a pey 10 s; ver [uso-del-servidor](contracts/uso-del-servidor.md)). Los 15 s se cuentan con `setTimeout` y `AbortController`, para que `page.clock` los controle en las pruebas (QP-4). Solo pide cosas a la dirección de `config.js`; los mensajes propios están en español | RF-008, RF-009, RF-012, RF-013, RF-062, RF-063, RF-078 |
+| `servidor.js` · `crear_cobro(monto, concepto)` | `POST /api/cobros` con `monto` número o `null` (Monto libre). 201 con imagen → cobro; 201 sin imagen → "No se pudo mostrar el QR. Intenta de nuevo." (RF-078); 422, 429, 502 o 503 → mensaje `detail`; fallo de red o 15 s sin respuesta → "No hay conexión con el servidor. Revisa tu internet e intenta de nuevo." (el servidor espera a pey 10 s; ver [uso-del-servidor](contracts/uso-del-servidor.md)). Los 15 s se cuentan con `setTimeout` y `AbortController`, para que `page.clock` los controle en las pruebas (QP-4). Solo pide cosas a la dirección de `config.js`; los mensajes propios están en español | RF-008, RF-009, RF-012, RF-013, RF-062, RF-063, RF-078 |
 | `servidor.js` · `ver_cobro(id)` | `GET /api/cobros/{id}` → cobro, "no existe" (404) o "sin conexión" | RF-030, RF-033, RF-056, RF-057 |
 | `servidor.js` · `cancelar_cobro(id)` | `POST /api/cobros/{id}/cancelar` → cobro, o el mensaje de 404 o 409, o "sin conexión" | RF-047, RF-050 |
 | `escucha.js` · `Escucha` | Un cobro en escucha. Si `Escuchas` le asigna canal, abre el `EventSource`; si no, consulta el estado cada 3 s desde el inicio (QP-1). Con canal, maneja `estado`, `pago`, `vencido`, `cancelado` y `fin`. Ante `error`: consulta cada 3 s, aviso de corte, y reintento del canal cada 15 s si quedó `CLOSED` (R-5). Termina con `fin` o al pasar `fin_ventana`. Entrega cada cobro actualizado a `Escuchas` | RF-020, RF-030, RF-031, RF-032, RF-033, RF-034, RF-039, RF-040, RF-056, RF-057, RF-074 |
@@ -209,8 +209,8 @@ Detalle en [data-model.md](data-model.md). En resumen:
 - **Pruebas primero**: cada tarea de implementación tiene antes su prueba, que se ve fallar y después pasa.
 - **Sin pey ni servidor real**: todas las pruebas usan `ServidorSimulado` (R-2). Cada prueba programa sus respuestas y empuja eventos del canal cuando quiere.
 - **Reloj controlado** (QP-4):
-  - `page.clock.install()` con una hora fija y `page.clock.run_for(…)` recorren lo que depende de temporizadores de JavaScript: la cuenta regresiva, la vigencia, la consulta cada 3 s, el reintento cada 15 s y el tiempo de espera de 15 s al crear.
-  - Lo que el navegador maneja por dentro no lo controla: la reconexión automática del `EventSource`. Esas pruebas provocan el corte desde el servidor simulado (cerrando el flujo o rechazándolo) y esperan en tiempo real, como máximo 5 s.
+  - `page.clock.install()` con una hora fija, seguido de `page.clock.pause_at(…)` para congelarlo (QT-3 de tasks), y `page.clock.run_for(…)` recorren lo que depende de temporizadores de JavaScript: la cuenta regresiva, la vigencia, la consulta cada 3 s, el reintento cada 15 s y el tiempo de espera de 15 s al crear.
+  - Lo que el navegador maneja por dentro no lo controla: la reconexión automática del `EventSource`. Por eso las pruebas no la esperan: el servidor simulado rechaza el canal, la pantalla queda en la consulta cada 3 s y la reconexión se hace con su reintento de 15 s, todo con reloj controlado. La reconexión automática del navegador se comprueba a mano (modo avión) en la guía de F4 (TK-1).
   - CE-002 y CE-003 se miden con el reloj de Python alrededor de la espera, no con `Date`.
   - La hora del servidor simulado se fija desde la prueba.
 - **Dos celulares**: las pruebas de pantalla corren en Chromium con `Pixel 7` y en WebKit con `iPhone 13`. La lógica pura corre solo en Chromium, porque no depende del motor.
@@ -235,7 +235,7 @@ Detalle en [data-model.md](data-model.md). En resumen:
 | RF-022, RF-023 (C1, segundo pago) | `test_un_segundo_pago_al_mismo_qr_vuelve_a_sonar` | pantalla |
 | RF-028 | `test_un_monto_distinto_muestra_el_pedido_y_el_recibido` | pantalla |
 | RF-029, CE-008 | `test_el_mismo_pago_por_canal_reconexion_y_consulta_suena_una_sola_vez` | pantalla |
-| RF-030 a RF-033, CE-003 | `test_con_el_canal_cortado_la_consulta_cada_3_segundos_avisa_el_pago`, `test_al_volver_el_canal_se_deja_de_consultar_y_se_quita_reconectando` (corte provocado desde el servidor simulado, espera real de 5 s como máximo, QP-4) | pantalla |
+| RF-030 a RF-033, CE-003 | `test_con_el_canal_cortado_la_consulta_cada_3_segundos_avisa_el_pago`, `test_al_volver_el_canal_se_deja_de_consultar_y_se_quita_reconectando` (corte provocado desde el servidor simulado y reconexión con el reintento propio, con reloj controlado; TK-1) | pantalla |
 | RF-034 | `test_si_el_servidor_rechaza_el_canal_se_sigue_con_la_consulta` (el simulado responde 429 al canal) | pantalla |
 | RF-035 a RF-039, CE-012 | `test_al_vencer_se_oculta_el_qr_y_se_ve_qr_vencido`, `test_un_pago_tardio_con_qr_vencido_suena_y_se_muestra` | pantalla |
 | RF-040 | `test_al_recibir_fin_se_cierra_el_canal_y_no_se_reconecta` | pantalla |
@@ -389,7 +389,7 @@ Detalle en [data-model.md](data-model.md). En resumen:
 | La imagen del QR llega vacía | No hay QR que mostrar | RF-078 (error con mensaje, C-3); si pasa en pruebas reales, TK y reconsiderar dibujar el QR |
 | El interruptor de silencio del iPhone calla el sonido | No suena en iPhone | `<audio>` en lugar de Web Audio (DP-10); la vista verde sigue avisando; se comprueba en F4 y se anota |
 | Muchos cobros en escucha (corte 2) | Sin límite, los canales agotarían las 6 conexiones del navegador; además, las consultas cada 3 s multiplican las peticiones a pey | Máximo 3 canales por pantalla (QP-1); el resto, consulta cada 3 s. Limitación aceptada para las consultas (QA-3), que se observa en las pruebas reales |
-| Corte 2 en un solo día (20 nov) | No llega antes del 21 nov | Empezar F6 en cuanto cierre F5; F6 y F7 tocan archivos distintos |
+| Corte 2 en un solo día (20 nov) | No llega antes del 21 nov | Empezar F6 en cuanto cierre F5. F6, F7 y F8 tocan los mismos archivos (`app.js`, `vistas.js`, `escucha.js`), así que van en serie; cada una es pequeña (QT-4 de tasks) |
 | #65 no publica la web con HTTPS a tiempo | Sin Wake Lock y sin cierre del corte 1 en celulares | La sección "Despliegue" del quickstart lista lo que necesita #65; las pruebas automáticas no dependen del despliegue |
 | Playwright tarda o falla al descargar navegadores, o WebKit no tiene versión para este macOS (QP-5) | Pruebas lentas, rotas o sin el motor de Safari | Primera tarea de F1 con prueba vacía en cada navegador; si WebKit no arranca, versión más nueva con soporte o WebKit solo en la integración continua en Linux (#35), y TK |
 | El backend migra a JavaScript (decisión de Hugo del 14 nov, para después del MVP) | Las pruebas de la web se quedan sin el entorno de Python del backend | Pasar entonces `web/` a su propio `pyproject.toml` con uv (errata 2 de la QA del plan) |
@@ -416,4 +416,4 @@ No hay excepciones.
 
 | # | Fecha | Qué | Por qué | Afecta |
 |---|---|---|---|---|
-| — | — | Sin entradas todavía | — | — |
+| TK-1 | 2026-11-15 | Las pruebas de reconexión ya no esperan en tiempo real a que el navegador reconecte el `EventSource`: el simulado rechaza el canal y la reconexión se hace con el reintento propio de 15 s, con reloj controlado. La reconexión automática del navegador se comprueba a mano en la guía de F4 | QT-2 de tasks: la constitución (principio V) prohíbe que las pruebas dependan del reloj real | §7, R-1 (QP-4), T029, T030 y T034 de tasks |

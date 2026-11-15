@@ -455,7 +455,7 @@ La pantalla no crea datos de negocio: muestra los del servidor.
 | Servidor de la spec 001 desplegado con HTTPS | CE-001, CE-002 | Altairtm (#65) | Pendiente |
 | Dominio de la web dado de alta en los orígenes permitidos del servidor | Que el navegador deje a la web usar el servidor (spec 001, RF-035) | Altairtm (#65) | Pendiente |
 | Web publicada con HTTPS | CE-001 y CE-011 (los navegadores exigen HTTPS para varias funciones del celular) | #65, #34 | Pendiente |
-| Sonido de pago recibido con licencia | RF-022, RF-044 | Responsable de #64 (Miguel) | Pendiente |
+| Sonido de pago recibido con licencia | RF-022, RF-044 | Responsable de #64 (Miguel) | Resuelto por R-7 del plan: la web genera su propio sonido, sin licencia que declarar (errata 4 de la QA de tasks, 2026-11-15) |
 | CoDi activado en el banco con que se prueba | CE-001 | Hugo | Se activa el 15 nov |
 | Un Android con Chrome y un iPhone con Safari | CE-001, CE-011 | Equipo | Por confirmar |
 

@@ -20,7 +20,7 @@ Cada punto tiene el formato de spec-kit: **Decisión**, **Por qué** y **Alterna
   - Vitest con happy-dom: dependencias de npm, y su DOM simulado no trae canal SSE, audio ni pantalla encendida.
 - **Costo aceptado**: descargar Chromium y WebKit (`playwright install chromium webkit`), con cientos de MB, y pruebas de segundos cada una.
 - **WebKit en esta Mac (QP-5)**: la Mac corre un macOS muy nuevo (Darwin 27). La primera tarea de F1 comprueba que WebKit arranca. Si no, se usa la versión más nueva de Playwright con soporte que tenga al menos dos semanas; si no hay ninguna, WebKit corre solo en la integración continua en Linux (#35), en local solo Chromium, y se anota como TK.
-- **Lo que `page.clock` no controla (QP-4)**: solo maneja los temporizadores de JavaScript. La reconexión interna de `EventSource` y `AbortSignal.timeout()` corren en tiempo real. Por eso los tiempos de espera se hacen con `setTimeout` y `AbortController`, y las pruebas de reconexión esperan en tiempo real (5 s como máximo).
+- **Lo que `page.clock` no controla (QP-4)**: solo maneja los temporizadores de JavaScript. La reconexión interna de `EventSource` y `AbortSignal.timeout()` corren en tiempo real. Por eso los tiempos de espera se hacen con `setTimeout` y `AbortController`, y las pruebas de reconexión esperan en tiempo real (5 s como máximo). *Cambiado por TK-1 del plan (QT-2 de tasks): la reconexión se prueba con el reintento propio de la pantalla y reloj controlado, y la reconexión automática del navegador se comprueba a mano.*
 
 ## R-2. Servidor simulado para las pruebas
 

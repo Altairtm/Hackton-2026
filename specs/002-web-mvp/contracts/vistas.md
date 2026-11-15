@@ -30,7 +30,7 @@ RF-001 a RF-078 (cada fila cita los suyos).
 | Campo concepto (`maxlength="40"`) | `concepto` | Opcional; abre el teclado del sistema solo al tocarlo | RF-005 |
 | Botón "Cobrar" | `cobrar` | Desactivado si el monto está vacío o vale 0 | RF-006, RF-009, RF-011 |
 | Botón "Monto libre" (C2) | `monto-libre` | Desactivado si hay un monto mayor a 0 | RF-007, RF-008, RF-065 |
-| Mensaje de error | `mensaje` | Texto del servidor, "Revisa tu conexión…" o "No se pudo mostrar el QR. Intenta de nuevo." (RF-078). Se borra al teclear | RF-012, RF-013, RF-078 |
+| Mensaje de error | `mensaje` | Texto del servidor, "No hay conexión con el servidor. Revisa tu internet e intenta de nuevo." o "No se pudo mostrar el QR. Intenta de nuevo." (RF-078). Se borra al teclear | RF-012, RF-013, RF-078 |
 
 ### Generando QR (`data-prueba="vista-generando"`)
 
