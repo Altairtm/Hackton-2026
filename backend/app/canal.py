@@ -61,7 +61,7 @@ async def flujo_de_avisos(
     consulta: ConsultaDeRespaldo,
     reloj: Reloj,
 ) -> AsyncIterator[str]:
-    """Emite estado, pago, vencido, fin y la señal de vida (spec 001, RF-030)."""
+    """Emite estado, pago, cancelado, vencido, fin y la señal de vida (spec 001, RF-030)."""
     cola = difusor.suscribir(cobro.id)
     try:
         yield "retry: 3000\n\n"

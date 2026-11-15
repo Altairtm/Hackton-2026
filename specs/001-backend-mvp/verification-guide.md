@@ -430,3 +430,61 @@ Commit sugerido:
 ```text
 feat(001): cobro de monto libre (F7)
 ```
+
+## F8 Historia 4: cancelar un cobro
+
+Fecha: 2026-11-14. El negocio cancela un cobro pendiente. El QR sigue pagable en el banco. Si después llega un pago, se registra y el cobro queda pagado. El canal emite `cancelado` y sigue abierto hasta `fin_ventana`.
+
+### Qué comprueban las pruebas
+
+```bash
+uv run --directory backend pytest -q tests/test_cancelar_cobro.py \
+  tests/test_canal.py::test_el_canal_avisa_cancelado_en_menos_de_15_segundos
+```
+
+- `POST /api/cobros/{id}/cancelar` sobre un pendiente responde 200 con `estado: "cancelado"` y deja una línea de registro con el id.
+- Pagado, vencido o ya cancelado responden 409 «Solo se puede cancelar un cobro que todavía no se paga ni vence».
+- Un aviso válido después de cancelar responde `procesado: true` y el cobro queda pagado.
+- Un id que no existe responde 404 «Ese cobro no existe».
+- Al publicar la cancelación, el canal emite `event: cancelado` con el objeto cobro antes de que el reloj avance 15 s.
+
+### Pago real a un QR cancelado (lo haces tú)
+
+Pendiente. Hace falta tu autorización en el momento. Es $0.01, con cuenta propia o la CLABE de prueba de pey. Cancelar no llama a pey: el banco sigue pudiendo cobrar el QR.
+
+1. Arranca el backend: `cd backend && uv run uvicorn app.main:app --port 8000`.
+2. Crea el cobro:
+
+```bash
+curl -s -X POST http://localhost:8000/api/cobros \
+  -H 'Content-Type: application/json' \
+  -d '{"monto": 0.01, "concepto": "Prueba"}'
+```
+
+3. Abre el canal: `curl -N http://localhost:8000/api/cobros/<id>/eventos`.
+4. Cancélalo: `curl -s -X POST http://localhost:8000/api/cobros/<id>/cancelar`. **Esperado**: `estado: "cancelado"` y, en el canal, `event: cancelado`.
+5. Paga $0.01 desde la app del banco, en la opción CoDi.
+6. **Esperado**: el canal emite `pago` y el cobro queda pagado.
+
+Anota el resultado: ____
+
+### Cierre
+
+```bash
+uv run --directory backend pytest -q
+uv run --directory backend ruff check .
+uv run --directory backend ruff format --check .
+```
+
+En el cierre de F8: `104 passed`, y ruff limpio.
+
+Revisión de Claude (2026-11-14):
+- Ruta, mensajes y códigos coinciden con [cancelar-cobro](contracts/cancelar-cobro.md).
+- Faltaba una prueba de lo que espera el pago real de T050. La agregué: `test_un_cobro_cancelado_sigue_escuchando_y_avisa_el_pago` (`test_canal.py`). Con la gracia de 600 s, el canal emite `cancelado`, sigue abierto pasado el vencimiento sin emitir `vencido` ni `fin`, y a los 5 minutos de vencer avisa el `pago` con el cobro *pagado*. Pasó a la primera: el código ya se comportaba así.
+- El README todavía no menciona la ruta de cancelar ni el evento `cancelado`. Eso le toca a T051 (FN).
+
+Commit sugerido:
+
+```text
+feat(001): cancelar un cobro pendiente (F8)
+```

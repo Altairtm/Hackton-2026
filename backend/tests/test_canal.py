@@ -92,6 +92,27 @@ async def test_el_canal_avisa_el_pago_en_cuanto_se_registra() -> None:
 
 
 @pytest.mark.asyncio
+async def test_el_canal_avisa_cancelado_en_menos_de_15_segundos() -> None:
+    """Al publicar la cancelación, el canal emite el cobro antes de 15 s (RF-030)."""
+    reloj, _repo, difusor, _pey, cliente_pey, consulta, cobro = _mundo()
+    inicio = reloj.ahora()
+    try:
+        gen = _flujo()(cobro, difusor, consulta, reloj)
+        await anext(gen)
+        await anext(gen)
+        cobro.cancelado_en = int(reloj.ahora())
+        difusor.publicar(cobro.id, "cancelado", cobro.publico())
+        trozo = await anext(gen)
+        assert "event: cancelado" in trozo
+        aviso = _datos(trozo)
+        assert aviso["id"] == cobro.id
+        assert aviso["estado"] == "cancelado"
+        assert reloj.ahora() - inicio < 15
+    finally:
+        await cliente_pey.cerrar()
+
+
+@pytest.mark.asyncio
 async def test_el_canal_avisa_cada_pago_con_su_numero_y_el_total() -> None:
     """Dos pagos al mismo QR salen con su número y el total acumulado (C-1, CE-006)."""
     reloj, _repo, difusor, _pey, cliente_pey, consulta, cobro = _mundo()
@@ -256,6 +277,33 @@ async def test_un_pago_5_minutos_despues_de_vencer_se_avisa_por_el_canal() -> No
         assert aviso["pago"]["numero"] == 1
         assert aviso["cobro"]["estado"] == "pagado"
         assert cobro.expira_en + 300 <= reloj.ahora() <= cobro.expira_en + 305
+    finally:
+        await cliente_pey.cerrar()
+
+
+@pytest.mark.asyncio
+async def test_un_cobro_cancelado_sigue_escuchando_y_avisa_el_pago() -> None:
+    """Tras cancelar, el canal sigue abierto, no emite vencido y avisa el pago (RF-017, RF-022)."""
+    reloj, repositorio, difusor, pey, cliente_pey, consulta, cobro = _mundo(gracia=600)
+    try:
+        gen = _flujo()(cobro, difusor, consulta, reloj)
+        await anext(gen)
+        await anext(gen)
+        repositorio.cancelar(cobro, reloj.ahora())
+        difusor.publicar(cobro.id, "cancelado", cobro.publico())
+        assert "event: cancelado" in await anext(gen)
+        vistos = []
+        while reloj.ahora() < cobro.expira_en + 300:
+            vistos.append(await anext(gen))
+        assert not any("event: vencido" in trozo for trozo in vistos)
+        assert not any("event: fin" in trozo for trozo in vistos)
+        pey.transacciones = [
+            {"id": "tx-cancelado", "status": "PAID", "amount": 1, "datePaid": int(reloj.ahora())}
+        ]
+        aviso = _datos((await _hasta(gen, "event: pago"))[-1])
+        assert aviso["pago"]["numero"] == 1
+        assert aviso["cobro"]["estado"] == "pagado"
+        assert reloj.ahora() < cobro.fin_ventana
     finally:
         await cliente_pey.cerrar()
 

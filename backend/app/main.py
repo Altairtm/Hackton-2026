@@ -14,7 +14,7 @@ from standardwebhooks.webhooks import Webhook, WebhookVerificationError
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.canal import flujo_de_avisos
-from app.cobros import Cobro, RepositorioCobros
+from app.cobros import Cobro, NoSePuedeCancelar, RepositorioCobros
 from app.config import Configuracion, obtener_configuracion
 from app.eventos import Difusor, LimiteDeCanales, LimitePorIp
 from app.pey import ClientePey, ErrorPey
@@ -226,6 +226,20 @@ def crear_app(
     async def ver_cobro(cobro_id: str) -> dict:
         cobro = buscar(cobro_id)
         await consulta.consultar(cobro, intervalo_minimo=3)
+        return cobro.publico()
+
+    @app.post("/api/cobros/{cobro_id}/cancelar")
+    async def cancelar_cobro(cobro_id: str) -> dict:
+        """Cancela un cobro pendiente y avisa por el canal (spec 001, RF-023, RF-024, RF-030)."""
+        cobro = buscar(cobro_id)
+        try:
+            cobros.cancelar(cobro, app.state.reloj.ahora())
+        except NoSePuedeCancelar:
+            raise HTTPException(
+                409, "Solo se puede cancelar un cobro que todavía no se paga ni vence"
+            )
+        registro.info("Cobro cancelado cobro=%s", cobro.id)
+        difusor.publicar(cobro.id, "cancelado", cobro.publico())
         return cobro.publico()
 
     @app.get("/api/cobros/{cobro_id}/eventos")

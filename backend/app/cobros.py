@@ -15,6 +15,10 @@ VENCIDO = "vencido"
 CANCELADO = "cancelado"
 
 
+class NoSePuedeCancelar(Exception):
+    """El cobro no está pendiente, así que no se cancela (spec 001, RF-024)."""
+
+
 def _numero(monto: Decimal) -> float:
     return float(monto)
 
@@ -217,3 +221,9 @@ class RepositorioCobros:
                 comparado,
             )
         return pago
+
+    def cancelar(self, cobro: Cobro, ahora: float) -> None:
+        """Guarda la cancelación solo si el cobro sigue pendiente (spec 001, RF-023, RF-024)."""
+        if cobro.estado(ahora) != PENDIENTE:
+            raise NoSePuedeCancelar
+        cobro.cancelado_en = int(ahora)

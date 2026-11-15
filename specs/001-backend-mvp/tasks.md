@@ -3,7 +3,7 @@
 - **Spec**: [spec.md](spec.md), estado: Aprobada el 2026-11-14, con el cambio C-1 aplicado el mismo día
 - **Plan**: [plan.md](plan.md), estado: Aprobado el 2026-11-14, ajustado por TK-1 y TK-2 (§14)
 - **Fecha**: 2026-11-14
-- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de `/speckit-analyze` y de la QA (QT-1 a QT-7, aplicadas, con el cambio C-1 a la spec). F1 terminada (Grok, 2026-11-14). F2 terminada (Grok, 2026-11-14). F3 terminada (Grok, 2026-11-14). F4 terminada (Grok, 2026-11-14). F5 terminada en código (Grok, 2026-11-14). F4 y F5 revisadas por Claude el 2026-11-14, con una corrección (400 para un `amount` que no es un número finito): 95 passed y ruff limpio. Los dos pagos reales de $0.01 quedan pendientes de la autorización de Hugo y de CoDi (se activa el 15 nov). Si a las 10:00 del 15 nov no están hechos, se sigue el riesgo de §11 del plan: desplegar este cierre en verde y avisarlo en el formulario. F6 terminada en código (Grok, 2026-11-14): 97 passed y ruff limpio. El pago real tardío de $0.01 queda pendiente de la autorización de Hugo. Si el banco no deja pagar un QR vencido, se anota la pregunta abierta de la spec §8.5. F7 terminada en código (Grok, 2026-11-14): 96 passed y ruff limpio. El pago real de monto libre de $0.01 queda pendiente de la autorización de Hugo. El siguiente paso es F8, cuando Hugo lo pida.
+- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de `/speckit-analyze` y de la QA (QT-1 a QT-7, aplicadas, con el cambio C-1 a la spec). F1 terminada (Grok, 2026-11-14). F2 terminada (Grok, 2026-11-14). F3 terminada (Grok, 2026-11-14). F4 terminada (Grok, 2026-11-14). F5 terminada en código (Grok, 2026-11-14). F4 y F5 revisadas por Claude el 2026-11-14, con una corrección (400 para un `amount` que no es un número finito): 95 passed y ruff limpio. Los dos pagos reales de $0.01 quedan pendientes de la autorización de Hugo y de CoDi (se activa el 15 nov). Si a las 10:00 del 15 nov no están hechos, se sigue el riesgo de §11 del plan: desplegar este cierre en verde y avisarlo en el formulario. F6 terminada en código (Grok, 2026-11-14): 97 passed y ruff limpio. El pago real tardío de $0.01 queda pendiente de la autorización de Hugo. Si el banco no deja pagar un QR vencido, se anota la pregunta abierta de la spec §8.5. F7 terminada en código (Grok, 2026-11-14): 96 passed y ruff limpio. El pago real de monto libre de $0.01 queda pendiente de la autorización de Hugo. F8 terminada en código (Grok, 2026-11-14). F6, F7 y F8 revisadas por Claude el 2026-11-14: 104 passed y ruff limpio. El pago real a un QR cancelado queda pendiente de la autorización de Hugo. El siguiente paso es FN, cuando Hugo lo pida.
 - **Entrada**: los documentos de `specs/001-backend-mvp/`: plan.md, spec.md, research.md, data-model.md, contracts/ y quickstart.md
 
 > **Notas para los comandos de spec-kit.**
@@ -448,7 +448,7 @@
 
 **Prueba independiente**: crear, cancelar y comprobar *cancelado*; luego un aviso de pago lo pasa a *pagado*.
 
-- [ ] T046 [P] [US4] Escribir las pruebas de cancelación en `backend/tests/test_cancelar_cobro.py` (archivo nuevo) según [cancelar-cobro](contracts/cancelar-cobro.md)
+- [X] T046 [P] [US4] Escribir las pruebas de cancelación en `backend/tests/test_cancelar_cobro.py` (archivo nuevo) según [cancelar-cobro](contracts/cancelar-cobro.md)
   - `test_cancelar_un_cobro_pendiente`: 200 con `estado: "cancelado"` y una línea de registro con el id del cobro.
   - `test_no_se_puede_cancelar_un_cobro_pagado_o_vencido` (parametrizada: *pagado*, *vencido* y ya *cancelado*): 409 "Solo se puede cancelar un cobro que todavía no se paga ni vence".
   - `test_un_cobro_cancelado_que_se_paga_pasa_a_pagado`: aviso válido después de cancelar → *pagado* y `procesado: true`.
@@ -457,21 +457,21 @@
   - **RF**: RF-017, RF-023, RF-024, RF-039
   - **Dep.**: T039
   - **Hecho cuando**: las pruebas fallan con 404 o 405.
-- [ ] T047 [P] [US4] Escribir la prueba del evento `cancelado` en `backend/tests/test_canal.py`
+- [X] T047 [P] [US4] Escribir la prueba del evento `cancelado` en `backend/tests/test_canal.py`
   - `test_el_canal_avisa_cancelado_en_menos_de_15_segundos`: al publicar la cancelación, el canal emite `cancelado` con el objeto cobro antes de avanzar 15 s.
   - **RF**: RF-030
   - **Dep.**: T039
   - **Hecho cuando**: la prueba falla.
-- [ ] T048 [US4] Implementar la cancelación en `backend/app/cobros.py` y `POST /api/cobros/{id}/cancelar` en `backend/app/main.py`
+- [X] T048 [US4] Implementar la cancelación en `backend/app/cobros.py` y `POST /api/cobros/{id}/cancelar` en `backend/app/main.py`
   - `RepositorioCobros.cancelar(cobro, ahora)`: solo si `estado(ahora) == "pendiente"`, guarda `cancelado_en`; si no, error que la ruta traduce a 409. La ruta publica `cancelado` en el `Difusor` y deja una línea de registro.
   - **RF**: RF-023, RF-024, RF-039
   - **Dep.**: T046
   - **Hecho cuando**: las pruebas de T046 pasan.
-- [ ] T049 [US4] Reenviar el evento `cancelado` en `backend/app/canal.py`
+- [X] T049 [US4] Reenviar el evento `cancelado` en `backend/app/canal.py`
   - **RF**: RF-030
   - **Dep.**: T047, T048
   - **Hecho cuando**: la prueba de T047 pasa y todo `pytest -q` sigue en verde.
-- [ ] T050 [US4] Cierre de F8: pruebas en verde, sección F8 en `verification-guide.md` con un pago real y commit sugerido
+- [X] T050 [US4] Cierre de F8: pruebas en verde, sección F8 en `verification-guide.md` con un pago real y commit sugerido
   - Pago real (QT-2), con autorización de Hugo en ese momento: crear un cobro de $0.01, cancelarlo y después pagarlo desde el banco; esperado: el canal emite `cancelado` y luego `pago`, y el cobro queda *pagado*.
   - **RF**: RF-017, RF-023
   - Commit sugerido: `feat(001): cancelar un cobro pendiente (F8)`.
