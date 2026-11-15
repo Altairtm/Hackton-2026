@@ -135,7 +135,7 @@ def test_un_qr_reutilizado_registra_y_numera_cada_pago(cliente) -> None:
 def test_un_aviso_despues_de_la_ventana_registra_el_pago(cliente, reloj) -> None:
     """Un aviso posterior a la ventana igual registra el pago (RF-017, QT-5)."""
     cobro = _crear(cliente)
-    reloj.avanzar(600)
+    reloj.avanzar(cobro["fin_ventana"] - reloj.ahora())
     respuesta = enviar_aviso(cliente, pago())
     assert respuesta.json()["procesado"] is True
     assert cliente.get(f"/api/cobros/{cobro['id']}").json()["estado"] == "pagado"

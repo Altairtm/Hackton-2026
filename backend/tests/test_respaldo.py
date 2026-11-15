@@ -204,6 +204,24 @@ async def test_cada_consulta_a_pey_deja_una_linea_en_el_registro(caplog) -> None
         await cliente_pey.cerrar()
 
 
+def test_despues_de_la_gracia_ya_no_se_consulta_a_pey(cliente, pey, reloj) -> None:
+    """En expira_en + 600 ya no se pregunta a pey y el canal cierra (RF-025, RF-043)."""
+    cobro = cliente.post("/api/cobros", json={"monto": 1, "concepto": "Tacos"}).json()
+    assert cobro["fin_ventana"] == cobro["expira_en"] + 600
+    reloj.avanzar(cobro["fin_ventana"] - reloj.ahora())
+    antes = _gets(pey)
+    visto = cliente.get(f"/api/cobros/{cobro['id']}")
+    assert visto.status_code == 200
+    assert visto.json()["estado"] == "vencido"
+    assert _gets(pey) == antes
+    canal = cliente.get(f"/api/cobros/{cobro['id']}/eventos")
+    assert canal.status_code == 200
+    assert "event: estado" in canal.text
+    assert "event: fin" in canal.text
+    assert canal.text.index("event: estado") < canal.text.index("event: fin")
+    assert _gets(pey) == antes
+
+
 def test_ver_el_cobro_consulta_a_pey_como_maximo_cada_3_segundos(cliente, pey, reloj) -> None:
     """Tres lecturas seguidas hacen una sola consulta; a los 3 s, otra (RF-025)."""
     cobro = cliente.post("/api/cobros", json={"monto": 1, "concepto": "Tacos"}).json()

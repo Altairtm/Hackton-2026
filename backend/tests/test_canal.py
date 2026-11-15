@@ -179,7 +179,7 @@ async def test_el_canal_manda_senal_de_vida_cada_15_segundos() -> None:
 def test_abrir_el_canal_despues_de_la_ventana_emite_estado_y_fin(cliente, reloj) -> None:
     """Pasada la ventana, el canal emite estado y fin, y cierra (RF-043)."""
     cobro = cliente.post("/api/cobros", json={"monto": 1, "concepto": "Tacos"}).json()
-    reloj.avanzar(600)
+    reloj.avanzar(cobro["fin_ventana"] - reloj.ahora())
     respuesta = cliente.get(f"/api/cobros/{cobro['id']}/eventos")
     assert respuesta.status_code == 200
     assert respuesta.headers["cache-control"] == "no-cache"
@@ -231,6 +231,33 @@ def test_sin_secreto_el_canal_avisa_el_pago_por_la_consulta(configuracion, pey, 
         pey.transacciones = [{"id": "tx-1", "status": "PAID", "amount": 0.01, "datePaid": 100}]
         respuesta = cliente_http.get(f"/api/cobros/{cobro['id']}/eventos")
         assert "event: pago" in respuesta.text
+
+
+@pytest.mark.asyncio
+async def test_un_pago_5_minutos_despues_de_vencer_se_avisa_por_el_canal() -> None:
+    """Con la gracia por defecto, a los 5 minutos de vencer el canal sigue y avisa (CE-007)."""
+    from app.config import Configuracion
+
+    gracia = Configuracion(_env_file=None).gracia_segundos
+    reloj, _repo, difusor, pey, cliente_pey, consulta, cobro = _mundo(gracia=gracia)
+    try:
+        gen = _flujo()(cobro, difusor, consulta, reloj)
+        await anext(gen)
+        await anext(gen)
+        await _hasta(gen, "event: vencido")
+        assert reloj.ahora() < cobro.fin_ventana
+        while reloj.ahora() < cobro.expira_en + 300:
+            await anext(gen)
+            assert reloj.ahora() < cobro.fin_ventana
+        pey.transacciones = [
+            {"id": "tx-tarde", "status": "PAID", "amount": 10, "datePaid": int(reloj.ahora())}
+        ]
+        aviso = _datos((await _hasta(gen, "event: pago"))[-1])
+        assert aviso["pago"]["numero"] == 1
+        assert aviso["cobro"]["estado"] == "pagado"
+        assert cobro.expira_en + 300 <= reloj.ahora() <= cobro.expira_en + 305
+    finally:
+        await cliente_pey.cerrar()
 
 
 @pytest.mark.asyncio

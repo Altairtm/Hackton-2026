@@ -98,13 +98,13 @@ def test_crear_cobro_pide_el_qr_a_pey_con_vigencia_de_10_minutos_y_el_id_del_cob
 
 
 def test_el_cobro_devuelve_todos_sus_campos(cliente) -> None:
-    """La respuesta trae los 15 campos del objeto cobro (RF-008)."""
+    """La respuesta trae los 15 campos del objeto cobro (RF-008, RF-022)."""
     cobro = cliente.post("/api/cobros", json={"monto": 0.01, "concepto": "Tacos"}).json()
     assert set(cobro) == CAMPOS_COBRO
     assert re.fullmatch(r"[A-Za-z0-9_-]{12}", cobro["id"])
     assert cobro["estado"] == "pendiente"
     assert cobro["expira_en"] == cobro["creado_en"] + 600
-    assert cobro["fin_ventana"] == cobro["expira_en"]
+    assert cobro["fin_ventana"] == cobro["expira_en"] + 600
     assert cobro["numero_de_pagos"] == 0
     assert cobro["total_recibido"] == 0
     assert cobro["pagado_en"] is None

@@ -33,8 +33,8 @@ class Configuracion(BaseSettings):
 
     # IPs de las que se acepta X-Forwarded-For. El valor por defecto no confía en la red.
     proxies_confiables: str = "127.0.0.1"
-    # Segundos de escucha después del vencimiento. 0 en el corte M0; 600 llega en el corte 2.
-    gracia_segundos: int = 0
+    # Segundos de escucha después del vencimiento (spec 001, RF-022).
+    gracia_segundos: int = 600
     canales_por_ip: int = 10
 
     @property

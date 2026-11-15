@@ -3,7 +3,7 @@
 - **Spec**: [spec.md](spec.md), estado: Aprobada el 2026-11-14, con el cambio C-1 aplicado el mismo día
 - **Plan**: [plan.md](plan.md), estado: Aprobado el 2026-11-14, ajustado por TK-1 y TK-2 (§14)
 - **Fecha**: 2026-11-14
-- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de `/speckit-analyze` y de la QA (QT-1 a QT-7, aplicadas, con el cambio C-1 a la spec). F1 terminada (Grok, 2026-11-14). F2 terminada (Grok, 2026-11-14). F3 terminada (Grok, 2026-11-14). F4 terminada (Grok, 2026-11-14). F5 terminada en código (Grok, 2026-11-14). F4 y F5 revisadas por Claude el 2026-11-14, con una corrección (400 para un `amount` que no es un número finito): 95 passed y ruff limpio. Los dos pagos reales de $0.01 quedan pendientes de la autorización de Hugo y de CoDi (se activa el 15 nov). Si a las 10:00 del 15 nov no están hechos, se sigue el riesgo de §11 del plan: desplegar este cierre en verde y avisarlo en el formulario. El siguiente paso es F6, cuando Hugo lo pida.
+- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de `/speckit-analyze` y de la QA (QT-1 a QT-7, aplicadas, con el cambio C-1 a la spec). F1 terminada (Grok, 2026-11-14). F2 terminada (Grok, 2026-11-14). F3 terminada (Grok, 2026-11-14). F4 terminada (Grok, 2026-11-14). F5 terminada en código (Grok, 2026-11-14). F4 y F5 revisadas por Claude el 2026-11-14, con una corrección (400 para un `amount` que no es un número finito): 95 passed y ruff limpio. Los dos pagos reales de $0.01 quedan pendientes de la autorización de Hugo y de CoDi (se activa el 15 nov). Si a las 10:00 del 15 nov no están hechos, se sigue el riesgo de §11 del plan: desplegar este cierre en verde y avisarlo en el formulario. F6 terminada en código (Grok, 2026-11-14): 97 passed y ruff limpio. El pago real tardío de $0.01 queda pendiente de la autorización de Hugo. Si el banco no deja pagar un QR vencido, se anota la pregunta abierta de la spec §8.5. El siguiente paso es F7, cuando Hugo lo pida.
 - **Entrada**: los documentos de `specs/001-backend-mvp/`: plan.md, spec.md, research.md, data-model.md, contracts/ y quickstart.md
 
 > **Notas para los comandos de spec-kit.**
@@ -399,19 +399,19 @@
 
 **Prueba independiente**: un pago que llega 5 minutos después del vencimiento se avisa por el canal, que sigue abierto (CE-007).
 
-- [ ] T040 [US3] Escribir las pruebas de la gracia en `backend/tests/test_canal.py`, `backend/tests/test_respaldo.py` y `backend/tests/test_salud_y_registros.py`
+- [X] T040 [US3] Escribir las pruebas de la gracia en `backend/tests/test_canal.py`, `backend/tests/test_respaldo.py` y `backend/tests/test_salud_y_registros.py`
   - `test_un_pago_5_minutos_despues_de_vencer_se_avisa_por_el_canal` (`test_canal.py`): con la gracia por defecto, el canal emite `vencido`, sigue abierto y en `expira_en + 300` emite `pago`; el cobro pasa a *pagado*.
   - `test_despues_de_la_gracia_ya_no_se_consulta_a_pey` (`test_respaldo.py`): en `expira_en + 600` ver el cobro no consulta a pey; abrir el canal emite `estado` y `fin` y cierra.
   - En `test_la_configuracion_tiene_los_valores_por_defecto_del_plan`, `gracia_segundos == 600`.
   - **RF**: RF-022, RF-025, RF-032, RF-043; CE-007
   - **Dep.**: T039
   - **Hecho cuando**: las pruebas fallan con la gracia en 0.
-- [ ] T041 [US3] Cambiar el valor por defecto de `GRACIA_SEGUNDOS` a 600 en `backend/app/config.py` y `backend/.env.example`
+- [X] T041 [US3] Cambiar el valor por defecto de `GRACIA_SEGUNDOS` a 600 en `backend/app/config.py` y `backend/.env.example`
   - Sin cambios de lógica (DP-12).
   - **RF**: RF-022
   - **Dep.**: T040
   - **Hecho cuando**: las pruebas de T040 pasan y todo `pytest -q` sigue en verde.
-- [ ] T042 [US3] Cierre de F6: pruebas en verde, sección F6 en `verification-guide.md` con un pago real y commit sugerido
+- [X] T042 [US3] Cierre de F6: pruebas en verde, sección F6 en `verification-guide.md` con un pago real y commit sugerido
   - Pago real (QT-2), con autorización de Hugo en ese momento: crear un cobro de $0.01, dejarlo vencer, abrir el canal y pagarlo unos 5 minutos después del vencimiento; esperado: `event: pago` con el cobro *pagado*. Si el banco no deja pagar un QR vencido, se anota (pregunta abierta para pey, §8.5 de la spec).
   - **RF**: RF-022; CE-007
   - Commit sugerido: `feat(001): ventana de gracia de 10 minutos para pagos tardíos (F6)`.

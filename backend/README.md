@@ -2,7 +2,7 @@
 
 API en **Python (FastAPI)**. Es la única parte que habla con pey y la única que conoce la llave.
 
-La fuente del contrato con la web es [`specs/001-backend-mvp/contracts/`](../specs/001-backend-mvp/contracts/). Este archivo resume el corte M0. Si algo no coincide, manda el contrato.
+La fuente del contrato con la web es [`specs/001-backend-mvp/contracts/`](../specs/001-backend-mvp/contracts/). Este archivo resume el corte M0 y la ventana de gracia del corte 2 (F6). Si algo no coincide, manda el contrato.
 
 ## Arranque
 
@@ -36,7 +36,7 @@ Sin valores de secretos. Los nombres y los valores por defecto del corte M0:
 | `CANALES_POR_IP` | Canales de avisos abiertos a la vez por IP | `10` |
 | `MONTO_MAXIMO` | Tope del monto en la demo | `100` |
 | `EXPIRACION_SEGUNDOS` | Vigencia del QR | `600` |
-| `GRACIA_SEGUNDOS` | Escucha después del vencimiento. En este corte queda en 0 | `0` |
+| `GRACIA_SEGUNDOS` | Escucha después del vencimiento (corte 2, F6). Con `0` el canal cierra al vencer, como en el corte M0 | `600` |
 
 En el hosting, `PROXIES_CONFIABLES` es la IP del proxy, o `*` solo si el hosting no deja conexiones directas al proceso. El arranque no usa varios workers: los cobros, los límites y los canales viven en memoria.
 
@@ -74,7 +74,7 @@ Un cobro se ve así (nombres en `snake_case`; los pagos van numerados):
   "qr_imagen": "iVBORw0KGgo...",
   "creado_en": 1794700000,
   "expira_en": 1794700600,
-  "fin_ventana": 1794700600,
+  "fin_ventana": 1794701200,
   "numero_de_pagos": 0,
   "total_recibido": 0,
   "pagado_en": null,
@@ -97,7 +97,9 @@ eventos.addEventListener("vencido", (e) => mostrar(JSON.parse(e.data)));
 eventos.addEventListener("fin", () => eventos.close());
 ```
 
-`pago` trae `{"pago": {"numero": 1, ...}, "cobro": { ... }}`. `estado`, `vencido` y `fin` traen el objeto cobro. El contrato completo está en [canal-avisos](../specs/001-backend-mvp/contracts/canal-avisos.md).
+`pago` trae `{"pago": {"numero": 1, ...}, "cobro": { ... }}`. `estado`, `vencido` y `fin` traen el objeto cobro.
+
+Con la gracia de 600 s, `vencido` no cierra el canal: sigue abierto hasta `fin_ventana` (10 minutos después de vencer) y un pago tardío llega como `pago`, con el cobro *pagado*. Solo `fin` cierra. El contrato completo está en [canal-avisos](../specs/001-backend-mvp/contracts/canal-avisos.md).
 
 ## Reglas que cumple
 

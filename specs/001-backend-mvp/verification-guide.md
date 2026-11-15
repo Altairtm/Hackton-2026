@@ -315,3 +315,61 @@ Commit sugerido, uno solo para F4 y F5:
 ```text
 feat(001): aviso, respaldo y canal (F4); demo protegida, salud y cierre del corte M0 (F5)
 ```
+
+## F6 Historia 3: ventana de gracia
+
+Fecha: 2026-11-14. Durante los 10 minutos posteriores al vencimiento el canal sigue abierto y un pago tardío se avisa. El cambio es el valor por defecto de `GRACIA_SEGUNDOS`: pasa de 0 a 600. La lógica del canal no cambia.
+
+`test_el_cobro_devuelve_todos_sus_campos` ahora exige `fin_ventana == expira_en + 600`. Las pruebas que abrían el canal o mandaban un aviso «al terminar la ventana» avanzan el reloj hasta `fin_ventana` del cobro, que ahora es 20 minutos después de crearlo.
+
+### Qué comprueban las pruebas
+
+```bash
+uv run --directory backend pytest -q \
+  tests/test_canal.py::test_un_pago_5_minutos_despues_de_vencer_se_avisa_por_el_canal \
+  tests/test_respaldo.py::test_despues_de_la_gracia_ya_no_se_consulta_a_pey \
+  tests/test_salud_y_registros.py::test_la_configuracion_tiene_los_valores_por_defecto_del_plan
+```
+
+- Con la gracia por defecto, el canal emite `vencido`, sigue abierto y, al llegar un pago en `expira_en + 300`, emite `pago`. El cobro queda *pagado*.
+- En `fin_ventana` (`expira_en + 600`) ver el cobro no consulta a pey. Abrir el canal emite `estado` y `fin`, y cierra.
+- `Configuracion(_env_file=None).gracia_segundos` es 600. `backend/.env.example` trae `GRACIA_SEGUNDOS=600`.
+
+### Pago real tardío (lo haces tú)
+
+Pendiente. Hace falta tu autorización en el momento. Es un cobro de $0.01, con cuenta propia o la CLABE de prueba de pey. Si el banco no deja pagar un QR ya vencido, anótalo aquí: es la pregunta abierta de la spec §8.5.
+
+1. Arranca el backend: `cd backend && uv run uvicorn app.main:app --port 8000`. Un solo proceso, sin `--workers`. No definas `GRACIA_SEGUNDOS` si quieres los 600 del corte 2.
+2. Crea el cobro:
+
+```bash
+curl -s -X POST http://localhost:8000/api/cobros \
+  -H 'Content-Type: application/json' \
+  -d '{"monto": 0.01, "concepto": "Prueba"}'
+```
+
+3. Espera a que venza (10 minutos). El canal, abierto con `curl -N http://localhost:8000/api/cobros/<id>/eventos`, tiene que emitir `event: vencido` y seguir conectado.
+4. Unos 5 minutos después del vencimiento, paga $0.01 desde la app del banco, en la opción CoDi.
+5. **Esperado**: `event: pago` y el cobro *pagado*.
+
+Anota el resultado: ____
+
+### Cierre
+
+```bash
+uv run --directory backend pytest -q
+uv run --directory backend ruff check .
+uv run --directory backend ruff format --check .
+```
+
+En el cierre de F6: `97 passed`, y ruff limpio.
+
+Revisión de Claude (2026-11-14):
+- Con `GRACIA_SEGUNDOS=0 uv run --directory backend pytest -q` fallan justo las 4 pruebas de la gracia. Así se cumple el «Hecho cuando» de T040.
+- `backend/README.md` seguía diciendo que la gracia «queda en 0». Ahora dice 600 por defecto, el ejemplo trae `fin_ventana` 10 minutos después de `expira_en` y explica que `vencido` no cierra el canal: solo `fin`.
+
+Commit sugerido:
+
+```text
+feat(001): ventana de gracia de 10 minutos para pagos tardíos (F6)
+```
