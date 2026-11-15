@@ -364,6 +364,7 @@ No hay specs previas. Cambios a **esta** spec después de aprobada:
 | # | Cambio | Por qué | Afecta | Estado |
 |---|---|---|---|---|
 | C-1 | El QR reutilizado (varios pagos numerados) y el monto distinto visible pasan del corte 2 al corte M0. Se quitan de §1.2 los puntos temporales "solo el primer pago se registra y se avisa" y "el cobro todavía no muestra ambos montos". | QT-3 de `tasks.md`: con la regla temporal, el segundo pago a un QR no se avisaba, en choque con el principio VIII ("se registra… y se avisa"). Hugo prefirió adelantar el QR reutilizado a registrar una excepción temporal. | §1.2, historia 2 (escenarios 2 y 6), RF-015, RF-016, RF-019, RF-020, §4 (QR reutilizado y monto distinto), CE-006; QA-1 queda modificada en ese punto | Aprobado y aplicado por Hugo el 2026-11-14 |
+| C-2 | RF-008 agrega "la hora actual del servidor" a cada cobro que se devuelve (crear, ver y cancelar) y a los eventos del canal de avisos. | QA-2 de la spec 002: `creado_en` se fija antes de pedirle el QR a pey (`main.py:181-185`), y sin la hora del servidor la pantalla no puede mostrar la cuenta regresiva con 2 s de error si el reloj del celular está desfasado (spec 002, RF-019). | RF-008, `contracts/crear-cobro.md` (objeto cobro), `contracts/canal-avisos.md`, pruebas del objeto cobro | Aprobado por Hugo el 2026-11-15 · sin aplicar (se aplica antes del corte 1 de la spec 002) |
 
 ### 8.3 Propuestas
 
