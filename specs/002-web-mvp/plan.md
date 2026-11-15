@@ -3,7 +3,7 @@
 - **Rama**: `feature/64-web-mvp`
 - **Fecha**: 2026-11-15
 - **Spec**: [spec.md](spec.md), estado: Aprobada el 2026-11-15
-- **Estado del plan**: `Aprobado`. Hugo lo aprobó el 2026-11-15, después de decidir DP-1 a DP-5 (§9.2) y la QA del plan (QP-1 a QP-5 y sus 3 erratas, aplicadas). El cambio C-3 a la spec, que salió del plan, está aprobado y aplicado (RF-078). El corte 1 depende del C-2 a la spec 001, aprobado y sin aplicar (F0).
+- **Estado del plan**: `Aprobado`. Hugo lo aprobó el 2026-11-15, después de decidir DP-1 a DP-5 (§9.2) y la QA del plan (QP-1 a QP-5 y sus 3 erratas, aplicadas). El cambio C-3 a la spec, que salió del plan, está aprobado y aplicado (RF-078). El C-2 a la spec 001 (F0) quedó aplicado el 2026-11-15 con el campo `hora_servidor`.
 - **Entrada**: la spec de `specs/002-web-mvp/spec.md`
 
 > **Notas para los comandos de spec-kit.**

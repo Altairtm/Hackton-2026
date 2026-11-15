@@ -75,7 +75,7 @@ La pantalla abre como máximo **3 canales a la vez**: el del cobro en pantalla y
 |---|---|---|---|---|
 | `hora_servidor` | entero (Unix) | En cada objeto cobro (crear, ver, cancelar y eventos del canal) | `desfase = hora_servidor − ahora_del_celular` (R-6) | RF-019, CE-009, CE-016 |
 
-- El nombre es una propuesta: lo fija el C-2 al aplicarse en la spec 001.
+- Nombre fijado al aplicar el C-2 en la spec 001 (2026-11-15): `hora_servidor`, entero Unix truncado de la hora del servidor al armar el objeto.
 - Si no viene, la pantalla usa el reloj del celular y deja una advertencia en la consola.
 
 ## 6. Ejemplo

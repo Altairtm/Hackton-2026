@@ -70,7 +70,7 @@ Cada punto tiene el formato de spec-kit: **Decisión**, **Por qué** y **Alterna
 
 ## R-6. Hora del servidor y cuenta regresiva (C-2)
 
-- **Decisión**: con el C-2 aplicado, cada cobro trae `hora_servidor`, un entero Unix como los demás tiempos (nombre propuesto para el C-2).
+- **Decisión**: con el C-2 aplicado, cada cobro trae `hora_servidor`, un entero Unix como los demás tiempos (nombre fijado al aplicar el C-2 el 2026-11-15).
   - Al recibir cada cobro, la pantalla calcula `desfase = hora_servidor − ahora_del_celular` y lo guarda por cobro.
   - El tiempo restante es `expira_en − (ahora_del_celular + desfase)`, recalculado cada 250 ms y mostrado como `m:ss`, para que la cuenta no se atrase si el navegador retrasa un temporizador.
   - Así, el primer cobro que tardó 9 s en crearse arranca en 9:51 (CE-016), porque `creado_en` se fijó antes de llamar a pey (`backend/app/main.py:181-185`).

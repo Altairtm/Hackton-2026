@@ -2,7 +2,7 @@
 
 - **ID**: `002-web-mvp`
 - **Fecha**: `2026-11-15`
-- **Estado**: `Aprobada`. Hugo la aprobó el 2026-11-15, después de la entrevista (E-1 a E-10) y de la QA (QA-1 a QA-10 y sus 6 erratas, todas aplicadas). Se entrega en dos cortes (§1.2). Depende del cambio C-2 a la spec 001, aprobado y sin aplicar (§8.2), que debe aplicarse antes del corte 1. El cambio C-3 (imagen del QR vacía) salió del plan y se aprobó y aplicó el 2026-11-15.
+- **Estado**: `Aprobada`. Hugo la aprobó el 2026-11-15, después de la entrevista (E-1 a E-10) y de la QA (QA-1 a QA-10 y sus 6 erratas, todas aplicadas). Se entrega en dos cortes (§1.2). Depende del cambio C-2 a la spec 001 (§8.2), aplicado el 2026-11-15 con el campo `hora_servidor`. El cambio C-3 (imagen del QR vacía) salió del plan y se aprobó y aplicó el 2026-11-15.
 - **Rama**: `feature/64-web-mvp` (propuesta; la crea Hugo)
 - **Issues**: #64 (página de cobro del MVP). Es la versión mínima de #31 (pantalla de cobro) y #32 (aviso de pago con sonido).
 - **Entrada**: "Iniciemos la redaccion de la spec 002. En este caso ademas de lo que tienes tienes del proyecto, vamos a intridcir el backend que permita introducir la funcinalidad en la pantalla de mostrar un teclado numerico que permita introducir el onto de cobro y asi generar el QR."
@@ -451,7 +451,7 @@ La pantalla no crea datos de negocio: muestra los del servidor.
 
 | Dependencia | Qué bloquea | Dueño | Estado (15 nov) |
 |---|---|---|---|
-| Cambio C-2 aplicado en la spec 001 (hora del servidor en cada cobro) | RF-019, CE-009, CE-016 | Hugo (lo aplica cuando lo pida, antes del corte 1) | Aprobado · sin aplicar |
+| Cambio C-2 aplicado en la spec 001 (hora del servidor en cada cobro) | RF-019, CE-009, CE-016 | Hugo | Aplicado el 2026-11-15 (`hora_servidor`, F9 de la 001) |
 | Servidor de la spec 001 desplegado con HTTPS | CE-001, CE-002 | Altairtm (#65) | Pendiente |
 | Dominio de la web dado de alta en los orígenes permitidos del servidor | Que el navegador deje a la web usar el servidor (spec 001, RF-035) | Altairtm (#65) | Pendiente |
 | Web publicada con HTTPS | CE-001 y CE-011 (los navegadores exigen HTTPS para varias funciones del celular) | #65, #34 | Pendiente |
@@ -490,7 +490,7 @@ La pantalla no crea datos de negocio: muestra los del servidor.
 
 | # | Spec | Cambio propuesto | Origen | Estado |
 |---|---|---|---|---|
-| C-2 | 001 | RF-008 agrega "la hora actual del servidor" a cada cobro que se devuelve (crear, ver y cancelar) y a los eventos del canal, para que la cuenta regresiva no dependa del reloj del celular (RF-019). Afecta a RF-008, a `contracts/crear-cobro.md` (objeto cobro) y a `contracts/canal-avisos.md`. Se aplica antes del corte 1 de esta spec. | QA-2 | Aprobado · sin aplicar (Hugo, 2026-11-15) |
+| C-2 | 001 | RF-008 agrega "la hora actual del servidor" a cada cobro que se devuelve (crear, ver y cancelar) y a los eventos del canal, para que la cuenta regresiva no dependa del reloj del celular (RF-019). Afecta a RF-008, a `contracts/crear-cobro.md` (objeto cobro) y a `contracts/canal-avisos.md`. Se aplica antes del corte 1 de esta spec. | QA-2 | Aprobado por Hugo el 2026-11-15 y aplicado el mismo día en la 001: campo `hora_servidor` (plan 001 TK-6, tasks 001 F9) |
 | C-3 | 002 (esta) | Nuevo RF (No deseado) [C1]: SI el cobro creado llega sin imagen del QR, ENTONCES EL SISTEMA mostrará en la vista Teclado "No se pudo mostrar el QR. Intenta de nuevo." y conservará el monto y el concepto. Más su fila en §4, y RF-015 lo excluye. | DP-2 y DP-3 del plan (la pantalla usa la imagen de pey, que puede llegar vacía) | Aprobado y aplicado por Hugo el 2026-11-15 (RF-078, RF-014, RF-015, §4, historia 1 escenario 12) |
 
 ### 8.3 Propuestas

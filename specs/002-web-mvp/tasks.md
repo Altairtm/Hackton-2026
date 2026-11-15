@@ -3,7 +3,7 @@
 - **Spec**: [spec.md](spec.md), estado: Aprobada el 2026-11-15, con el cambio C-3 aplicado (RF-078)
 - **Plan**: [plan.md](plan.md), estado: Aprobado el 2026-11-15 (DP-1 a DP-17, QP-1 a QP-5)
 - **Fecha**: 2026-11-15
-- **Estado**: `En QA`. `/speckit-analyze` y la QA de tasks hechos el 2026-11-15 (QT-1 a QT-4 y sus 4 erratas, decididos por Hugo y aplicados el mismo día). Ninguna fase empieza sin que Hugo apruebe este documento.
+- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-15, después de `/speckit-analyze` y de la QA de tasks (QT-1 a QT-4 y sus 4 erratas, aplicadas; TK-1 en el plan). Aprobar no autoriza a empezar F1: se espera a que Hugo pida `/speckit-implement`. El C-2 a la spec 001 (F0) quedó aplicado el 2026-11-15 con el campo `hora_servidor`.
 - **Entrada**: los documentos de `specs/002-web-mvp/`: plan.md, spec.md, research.md, data-model.md, contracts/ y quickstart.md
 
 > **Notas para los comandos de spec-kit.**
@@ -54,7 +54,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
 
 | Dependencia | Qué bloquea | Estado |
 |---|---|---|
-| C-2 aplicado en la spec 001 (`hora_servidor` en el objeto cobro y en los eventos), fase F0 del plan, trabajo del `tasks.md` de la 001 | El nombre definitivo del campo en T015 y T027, y el cierre del corte 1 (T043). Mientras no esté, las pruebas usan `hora_servidor`, el nombre propuesto | Aprobado · sin aplicar (Hugo lo pide) |
+| C-2 aplicado en la spec 001 (`hora_servidor` en el objeto cobro y en los eventos), fase F0 del plan, trabajo del `tasks.md` de la 001 | El nombre definitivo del campo en T015 y T027, y el cierre del corte 1 (T043). Mientras no esté, las pruebas usan `hora_servidor`, el nombre propuesto | Listo: aplicado el 2026-11-15 con el nombre `hora_servidor` (F9 de la 001) |
 | WebKit de Playwright en esta Mac (Darwin 27) | Las pruebas en `iPhone 13` desde F1 (QP-5) | Se comprueba en T002 |
 | Web y servidor publicados con HTTPS, y el dominio de la web en `WEB_ORIGIN` (#65, Altairtm) | Los pagos reales y la pantalla encendida de T043 (CE-001, CE-011) y los cierres del corte 2 | Pendiente |
 | CoDi activo en el banco con que se prueba (Hugo) | Los pagos reales de $0.01 de T043, T048, T053 y T057 | Se activa el 15 nov |
