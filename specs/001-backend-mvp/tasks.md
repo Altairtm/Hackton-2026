@@ -3,7 +3,7 @@
 - **Spec**: [spec.md](spec.md), estado: Aprobada el 2026-11-14, con el cambio C-1 aplicado el mismo día
 - **Plan**: [plan.md](plan.md), estado: Aprobado el 2026-11-14, ajustado por TK-1 y TK-2 (§14)
 - **Fecha**: 2026-11-14
-- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de `/speckit-analyze` y de la QA (QT-1 a QT-7, aplicadas, con el cambio C-1 a la spec). F1 terminada (Grok, 2026-11-14). El siguiente paso es F2, cuando Hugo lo pida.
+- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de `/speckit-analyze` y de la QA (QT-1 a QT-7, aplicadas, con el cambio C-1 a la spec). F1 terminada (Grok, 2026-11-14). F2 terminada (Grok, 2026-11-14). El siguiente paso es F3, cuando Hugo lo pida.
 - **Entrada**: los documentos de `specs/001-backend-mvp/`: plan.md, spec.md, research.md, data-model.md, contracts/ y quickstart.md
 
 > **Notas para los comandos de spec-kit.**
@@ -122,7 +122,7 @@
 
 **⚠️ Ninguna historia empieza antes de cerrar esta fase.**
 
-- [ ] T009 [P] Escribir las pruebas del modelo de cobro y pago en `backend/tests/test_modelo.py`
+- [X] T009 [P] Escribir las pruebas del modelo de cobro y pago en `backend/tests/test_modelo.py`
   - `test_un_cobro_sin_pagos_vence_a_los_10_minutos`: `expira_en == creado_en + 600`; *pendiente* en `creado_en + 599`, *vencido* en `creado_en + 600`.
   - `test_el_estado_sigue_el_orden_pagos_cancelado_vencido_pendiente`: "si hay pagos → pagado; si no, si cancelado_en → cancelado; si no, si ahora ≥ expira_en → vencido; si no → pendiente".
   - `test_la_ventana_de_escucha_termina_al_vencer_mas_la_gracia`: `fin_ventana == expira_en + gracia`; `en_ventana(ahora)` es `ahora < fin_ventana` (con gracia 0 y con gracia 600).
@@ -132,7 +132,7 @@
   - **RF**: RF-008, RF-018, RF-019, RF-021, RF-032
   - **Dep.**: T008
   - **Hecho cuando**: las pruebas existen y fallan contra el `cobros.py` del prototipo.
-- [ ] T010 Escribir las pruebas de `registrar_pago` en `backend/tests/test_modelo.py`
+- [X] T010 Escribir las pruebas de `registrar_pago` en `backend/tests/test_modelo.py`
   - `test_el_primer_pago_pasa_a_pagado_desde_pendiente_vencido_o_cancelado`.
   - `test_una_transaccion_ya_vista_no_se_registra_otra_vez`: el mismo `transaccion_id` devuelve "nada" aunque venga de otra fuente o de otro cobro (conjunto global).
   - `test_un_qr_reutilizado_registra_y_numera_cada_pago` (parte unitaria): tres transacciones distintas → pagos 1, 2 y 3; `total_recibido` es la suma; `pagado_en` es la hora del último; el estado sigue *pagado* (C-1).
@@ -141,38 +141,38 @@
   - **RF**: RF-014, RF-015, RF-016, RF-017, RF-019, RF-020; CE-006
   - **Dep.**: T009 (mismo archivo)
   - **Hecho cuando**: las pruebas existen y fallan contra el prototipo.
-- [ ] T011 [P] Escribir las pruebas del cliente de pey para la consulta en `backend/tests/test_respaldo.py`
+- [X] T011 [P] Escribir las pruebas del cliente de pey para la consulta en `backend/tests/test_respaldo.py`
   - `test_la_consulta_sigue_las_paginas_solo_mientras_haya_pagos_nuevos_y_solo_cuenta_los_pagados`: 3 páginas en el pey simulado (la primera con una `PENDING`); con todas desconocidas pide las 3 y devuelve solo las `PAID` como `PagoPey(id, monto, monto_base, pagado_en)`; con la tercera ya conocida, no pide una cuarta; en el caso normal hace una sola petición.
   - `test_si_pey_tarda_mas_de_4_segundos_la_consulta_cuenta_como_sin_respuesta`: el pey simulado lanza `httpx.ReadTimeout`; `pagos_del_qr` lanza `ErrorPey` de tipo "sin conexión", y el cliente se construye con un tiempo de espera de 4 s para la consulta (se comprueba en el `httpx.Timeout` de la petición).
   - **RF**: RF-025, RF-027, RF-015 (QP-1, QP-2, DP-8)
   - **Dep.**: T008
   - **Hecho cuando**: las pruebas existen y fallan contra el `pey.py` del prototipo.
-- [ ] T012 Actualizar las pruebas repartidas al objeto cobro nuevo y escribir la prueba de errores en español en `backend/tests/test_crear_cobro.py`
+- [X] T012 Actualizar las pruebas repartidas al objeto cobro nuevo y escribir la prueba de errores en español en `backend/tests/test_crear_cobro.py`
   - En los archivos de pruebas repartidos en T007, cambiar las aserciones de nombres de campos del cobro al [objeto cobro](contracts/crear-cobro.md#objeto-cobro) (`codiQrId` → `codi_qr_id`, `qrImagen` → `qr_imagen`, etc.). Las pruebas de salud y del canal se reescriben en F4 y F5, no aquí.
   - `test_los_errores_de_validacion_salen_en_espanol`: `POST /api/cobros` con `{"monto": "abc"}` responde 422 con `{"detail": <texto>}`, donde `detail` es una cadena en español, no la lista de pydantic.
   - **RF**: RF-004, RF-008 (DP-9, R-7)
   - **Dep.**: T010, T011
   - **Hecho cuando**: las pruebas fallan por los nombres de campos y por el formato de error.
-- [ ] T013 [P] Escribir la prueba de registros visibles en `backend/tests/test_salud_y_registros.py`
+- [X] T013 [P] Escribir la prueba de registros visibles en `backend/tests/test_salud_y_registros.py`
   - `test_los_registros_de_pago_facil_se_ven_en_info`: al crear la app, el registro `pago_facil` queda en nivel `INFO` con un manejador que escribe en la consola.
   - **RF**: RF-039 (R-9, H-10)
   - **Dep.**: T008
   - **Hecho cuando**: la prueba existe y falla.
-- [ ] T014 Implementar `Cobro`, `Pago` y `RepositorioCobros` con reloj en `backend/app/cobros.py`
+- [X] T014 Implementar `Cobro`, `Pago` y `RepositorioCobros` con reloj en `backend/app/cobros.py`
   - `Cobro`: campos del [modelo de datos §1](data-model.md); `estado(ahora)`, `en_ventana(ahora)`, `numero_de_pagos`, `total_recibido`, `pagado_en` y `publico()`.
   - `Pago`: campos del [modelo de datos §2](data-model.md) y `monto_distinto` calculado.
   - `RepositorioCobros`: índices `id → Cobro`, `codi_qr_id → id`, conjunto de transacciones vistas y conjunto de `webhook-id` vistos (data-model §5). `nuevo(...)` recibe `ahora` del reloj; `registrar_pago(cobro, transaccion_id, monto_recibido, monto_base, pagado_en, fuente) -> Pago | None` con las reglas de data-model §4: transacción ya vista → nada; si no, agrega con `numero = len(pagos) + 1`, sin límite; si `monto_distinto`, deja un `WARNING`.
   - **RF**: RF-008, RF-014, RF-015, RF-016, RF-017, RF-018, RF-019, RF-020, RF-021
   - **Dep.**: T004, T010
   - **Hecho cuando**: las pruebas de T009 y T010 pasan.
-- [ ] T015 [P] Implementar la consulta paginada, `PagoPey`, los tiempos de espera y los tipos de `ErrorPey` en `backend/app/pey.py`
+- [X] T015 [P] Implementar la consulta paginada, `PagoPey`, los tiempos de espera y los tipos de `ErrorPey` en `backend/app/pey.py`
   - `pagos_del_qr(codi_qr_id, vistas: set[str]) -> list[PagoPey]`: sigue `nextToken` solo mientras la página traiga alguna transacción que no esté en `vistas` (QP-2); devuelve solo `PAID`; `monto_base` = `amountBreakdown.base` si viene. Devuelve también cuántas páginas pidió y el `requestId` de la última respuesta, si pey lo manda, para el registro de T026.
   - Tiempos de espera: 4 s por petición de consulta y 10 s para `crear_qr` (QP-1, DP-13). Un tiempo agotado se trata como error de conexión.
   - `ErrorPey` distingue: sin llave, sin conexión, llave rechazada (401/403), mantenimiento (503) y error general, y guarda el `requestId` cuando pey lo manda.
   - **RF**: RF-010, RF-025, RF-027, RF-039
   - **Dep.**: T011
   - **Hecho cuando**: las pruebas de T011 pasan.
-- [ ] T016 Conectar `backend/app/main.py` al modelo nuevo, con errores en español y registros configurados
+- [X] T016 Conectar `backend/app/main.py` al modelo nuevo, con errores en español y registros configurados
   - Usar `app.state.reloj` para crear cobros y calcular estados; responder con `Cobro.publico()`.
   - El manejador del aviso y la consulta de respaldo del prototipo (`backend/app/main.py:79,85,149`) pasan de `marcar_pagado` a `RepositorioCobros.registrar_pago`, y de la consulta vieja a `pagos_del_qr(codi_qr_id, vistas)`, con el mismo comportamiento que hoy, hasta que T027 y T028 los reemplacen.
   - Manejador de `RequestValidationError` que responde `{"detail": "<mensaje en español>"}` (los mensajes específicos de monto y concepto llegan en F3).
@@ -180,7 +180,7 @@
   - **RF**: RF-004, RF-008, RF-039 (DP-9, R-7, R-9)
   - **Dep.**: T012, T013, T014, T015
   - **Hecho cuando**: `uv run --directory backend pytest -q` está todo en verde, con `ruff check` y `ruff format --check` limpios.
-- [ ] T017 Cierre de F2: pruebas en verde, sección F2 en `verification-guide.md` y commit sugerido
+- [X] T017 Cierre de F2: pruebas en verde, sección F2 en `verification-guide.md` y commit sugerido
   - La guía dice cómo leer en las pruebas el orden de estados, la numeración de pagos y el monto distinto, y cómo ver un registro `INFO` al arrancar el servidor.
   - Commit sugerido: `refactor(001): modelo de cobro con pagos numerados, reloj y cliente de pey paginado (F2)`.
 

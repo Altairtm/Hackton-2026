@@ -11,9 +11,9 @@ def test_crear_cobro_llama_a_pey_y_devuelve_el_qr(cliente, pey) -> None:
     respuesta = cliente.post("/api/cobros", json={"monto": 0.01, "concepto": "  Tacos  "})
     assert respuesta.status_code == 201
     cobro = respuesta.json()
-    assert cobro["codiQrId"] == CODI_QR_ID
+    assert cobro["codi_qr_id"] == CODI_QR_ID
     assert cobro["qr"] == '{"IDC":"x"}'
-    assert cobro["qrImagen"] == "aW1n"
+    assert cobro["qr_imagen"] == "aW1n"
     assert cobro["estado"] == "pendiente"
     assert cobro["concepto"] == "Tacos"
 
@@ -31,6 +31,16 @@ def test_montos_invalidos_se_rechazan_sin_llamar_a_pey(cliente, pey, monto) -> N
     respuesta = cliente.post("/api/cobros", json={"monto": monto, "concepto": "x"})
     assert respuesta.status_code == 422
     assert pey.solicitudes == []
+
+
+def test_los_errores_de_validacion_salen_en_espanol(cliente) -> None:
+    """Un monto ilegible responde 422 con un texto en español, no la lista de pydantic (RF-004)."""
+    respuesta = cliente.post("/api/cobros", json={"monto": "abc"})
+    assert respuesta.status_code == 422
+    detalle = respuesta.json()["detail"]
+    assert isinstance(detalle, str)
+    assert "input should" not in detalle.lower()
+    assert "válid" in detalle.lower()
 
 
 def test_error_de_pey_da_mensaje_claro_y_no_guarda_el_cobro(cliente, pey) -> None:

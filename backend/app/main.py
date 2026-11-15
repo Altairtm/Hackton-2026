@@ -3,13 +3,13 @@
 import asyncio
 import json
 import logging
-import time
 from contextlib import asynccontextmanager
 from decimal import Decimal, InvalidOperation
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 from standardwebhooks.webhooks import Webhook, WebhookVerificationError
 
@@ -20,6 +20,7 @@ from app.pey import ClientePey, ErrorPey
 from app.reloj import Reloj
 
 registro = logging.getLogger("pago_facil")
+_registro_listo = False
 
 EVENTO_QR_PAGADO = "codi.qr.payment_received"
 SEGUNDOS_ENTRE_CONSULTAS_A_PEY = 3
@@ -39,13 +40,29 @@ class SolicitudCobro(BaseModel):
         return valor or "Cobro"
 
 
+def configurar_registros() -> None:
+    """Deja `pago_facil` en INFO con un manejador de consola (spec 001, RF-039)."""
+    global _registro_listo
+    registro.setLevel(logging.INFO)
+    if _registro_listo:
+        return
+    consola = logging.StreamHandler()
+    consola.setLevel(logging.INFO)
+    consola.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+    registro.addHandler(consola)
+    _registro_listo = True
+    registro.info("Registros de pago_facil activos")
+
+
 def crear_app(
     config: Configuracion | None = None,
     cliente_pey: ClientePey | None = None,
     reloj: Reloj | None = None,
 ) -> FastAPI:
-    """Crea la API. Guarda el reloj y todavía no lo usa en la lógica (spec 001, principio V)."""
+    """Crea la API con reloj, registros y el modelo de cobros (spec 001, RF-008, RF-039)."""
     config = config or obtener_configuracion()
+    configurar_registros()
+    reloj_de_la_app = reloj or Reloj()
 
     @asynccontextmanager
     async def ciclo_de_vida(app: FastAPI):
@@ -56,7 +73,7 @@ def crear_app(
         await app.state.pey.cerrar()
 
     app = FastAPI(title="PAGO FÁCIL", version="0.1.0", lifespan=ciclo_de_vida)
-    app.state.reloj = reloj or Reloj()
+    app.state.reloj = reloj_de_la_app
     app.add_middleware(
         CORSMiddleware,
         allow_origins=config.origenes_web,
@@ -64,10 +81,9 @@ def crear_app(
         allow_headers=["Content-Type"],
     )
 
-    cobros = RepositorioCobros()
+    cobros = RepositorioCobros(reloj_de_la_app, config.gracia_segundos)
     difusor = Difusor()
     limite = LimitePorIp(config.limite_cobros_por_minuto)
-    webhooks_vistos: set[str] = set()
 
     def buscar(cobro_id: str) -> Cobro:
         cobro = cobros.obtener(cobro_id)
@@ -76,36 +92,49 @@ def crear_app(
         return cobro
 
     def registrar_pago(
-        cobro: Cobro, transaccion_id: str, monto: Decimal, pagado_en: int | None
+        cobro: Cobro,
+        transaccion_id: str,
+        monto_recibido: Decimal,
+        monto_base: Decimal | None,
+        pagado_en: int | None,
+        fuente: str,
     ) -> bool:
-        if monto != cobro.monto:
-            registro.warning("Cobro %s: se pidió %s y se pagó %s", cobro.id, cobro.monto, monto)
-        if not cobros.marcar_pagado(cobro, transaccion_id, monto, pagado_en):
+        """Pasa el pago por la única puerta y avisa si es nuevo. Mismo aviso `pagado` hasta F4."""
+        pago = cobros.registrar_pago(
+            cobro, transaccion_id, monto_recibido, monto_base, pagado_en, fuente
+        )
+        if pago is None:
             return False
         registro.info("Cobro %s pagado (transacción %s)", cobro.id, transaccion_id)
         difusor.publicar(cobro.id, PAGADO, cobro.publico())
         return True
 
     async def consultar_pago_en_pey(cobro: Cobro) -> None:
-        """Respaldo del webhook: pregunta a pey si el QR ya tiene un pago."""
-        ahora = time.monotonic()
+        """Respaldo del aviso: pregunta a pey si el QR ya tiene un pago (spec 001, RF-025)."""
+        ahora = app.state.reloj.ahora()
         if ahora - cobro.ultima_consulta_pey < SEGUNDOS_ENTRE_CONSULTAS_A_PEY:
             return
         cobro.ultima_consulta_pey = ahora
         try:
-            transacciones = await app.state.pey.transacciones_qr(cobro.codi_qr_id)
+            resultado = await app.state.pey.pagos_del_qr(cobro.codi_qr_id, cobros.vistas)
         except ErrorPey as error:
-            registro.warning("No se pudo consultar el cobro %s en pey: %s", cobro.id, error)
+            registro.warning(
+                "No se pudo consultar el cobro %s en pey: %s (requestId=%s)",
+                cobro.id,
+                error,
+                error.request_id,
+            )
             return
-        for transaccion in transacciones:
-            if transaccion.get("status") == "PAID" and transaccion.get("id"):
-                registrar_pago(
-                    cobro,
-                    transaccion["id"],
-                    Decimal(str(transaccion.get("amount", cobro.monto))),
-                    transaccion.get("datePaid"),
-                )
-                return
+        for pago_pey in resultado.pagos:
+            registrar_pago(
+                cobro,
+                pago_pey.id,
+                pago_pey.monto,
+                pago_pey.monto_base,
+                pago_pey.pagado_en,
+                "consulta",
+            )
+            return
 
     @app.get("/salud")
     async def salud() -> dict:
@@ -115,6 +144,16 @@ def crear_app(
             "pey_webhook_secret": bool(config.pey_webhook_secret.get_secret_value()),
         }
 
+    @app.exception_handler(RequestValidationError)
+    async def errores_de_validacion(
+        _solicitud: Request, _error: RequestValidationError
+    ) -> JSONResponse:
+        """Un texto en español en lugar de la lista de pydantic (spec 001, RF-004)."""
+        return JSONResponse(
+            status_code=422,
+            content={"detail": "Los datos del cobro no son válidos."},
+        )
+
     @app.post("/api/cobros", status_code=201)
     async def crear_cobro(solicitud: SolicitudCobro, request: Request) -> dict:
         if solicitud.monto > config.monto_maximo:
@@ -123,7 +162,12 @@ def crear_app(
         if not limite.permitir(ip):
             raise HTTPException(429, "Demasiados cobros seguidos. Espera un minuto.")
 
-        cobro = cobros.nuevo(solicitud.monto, solicitud.concepto, config.expiracion_segundos)
+        cobro = cobros.nuevo(
+            solicitud.monto,
+            solicitud.concepto,
+            config.expiracion_segundos,
+            ahora=app.state.reloj.ahora(),
+        )
         try:
             qr = await app.state.pey.crear_qr(
                 monto=cobro.monto,
@@ -135,7 +179,7 @@ def crear_app(
         except ErrorPey as error:
             cobros.descartar(cobro)
             registro.error("pey no creó el cobro: %s (requestId=%s)", error, error.request_id)
-            if error.tipo == "SIN_API_KEY":
+            if error.tipo == "sin llave":
                 raise HTTPException(503, "El backend no tiene configurada la API key de pey")
             if error.estado in (401, 403):
                 raise HTTPException(502, "pey rechazó la API key del backend")
@@ -149,7 +193,7 @@ def crear_app(
     @app.get("/api/cobros/{cobro_id}")
     async def ver_cobro(cobro_id: str) -> dict:
         cobro = buscar(cobro_id)
-        if cobro.estado == PENDIENTE:
+        if cobro.estado(app.state.reloj.ahora()) == PENDIENTE:
             await consultar_pago_en_pey(cobro)
         return cobro.publico()
 
@@ -164,7 +208,7 @@ def crear_app(
             cola = difusor.suscribir(cobro.id)
             try:
                 yield "retry: 3000\n\n"
-                if cobro.pagado:
+                if cobro.estado(app.state.reloj.ahora()) == PAGADO:
                     yield mensaje(PAGADO, cobro.publico())
                     return
                 while not await request.is_disconnected():
@@ -173,7 +217,7 @@ def crear_app(
                             cola.get(), timeout=SEGUNDOS_ENTRE_LATIDOS_SSE
                         )
                     except TimeoutError:
-                        if cobro.estado == VENCIDO:
+                        if cobro.estado(app.state.reloj.ahora()) == VENCIDO:
                             yield mensaje(VENCIDO, cobro.publico())
                             return
                         yield ": sigo conectado\n\n"
@@ -209,9 +253,9 @@ def crear_app(
             return {"recibido": True, "procesado": False}
 
         webhook_id = request.headers.get("webhook-id", "")
-        if webhook_id in webhooks_vistos:
+        if cobros.aviso_ya_visto(webhook_id):
             return {"recibido": True, "procesado": False}
-        webhooks_vistos.add(webhook_id)
+        cobros.marcar_aviso(webhook_id)
 
         cobro = cobros.por_codi_qr(str(datos.get("codiQrId", "")))
         transaccion_id = datos.get("transactionId")
@@ -223,7 +267,9 @@ def crear_app(
         except InvalidOperation:
             raise HTTPException(400, "Monto no válido")
 
-        procesado = registrar_pago(cobro, transaccion_id, monto, datos.get("datePaid"))
+        procesado = registrar_pago(
+            cobro, transaccion_id, monto, None, datos.get("datePaid"), "aviso"
+        )
         return {"recibido": True, "procesado": procesado}
 
     return app
