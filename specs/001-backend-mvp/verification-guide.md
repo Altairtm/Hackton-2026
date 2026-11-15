@@ -148,7 +148,7 @@ curl -s -w '\n%{time_total}\n' -X POST http://localhost:8000/api/cobros \
 
 Si pasa de 3 s, se anota un TK en el §14 del plan y la decisión de la imagen pasa al issue #64.
 
-**Medición del 2026-11-14 (Hugo):** 201, cobro real de $0.01 con imagen, `time_total` de **9.09 s**. Fue una sola medición, con el servidor recién arrancado. Pasa de 3 s, así que queda como TK-5 en el §14 del plan y la decisión pasa a #64. La respuesta de crear no trajo `requestId`, así que la línea `INFO` salió sin él, como estaba previsto.
+**Medición del 2026-11-14 (Hugo):** 201, cobro real de $0.01 con imagen, `time_total` de **9.09 s**, con el servidor recién arrancado. Se repitió con otro arranque y dos cobros seguidos: **7.77 s** y **2.39 s**. El primer cobro después de arrancar pasa de 3 s y los siguientes no. Queda como TK-5 en el §14 del plan y la decisión pasa a #64. La respuesta de crear no trajo `requestId`, así que la línea `INFO` salió sin él, como estaba previsto.
 
 ### Cierre
 
