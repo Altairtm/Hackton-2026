@@ -59,7 +59,12 @@ class PeySimulado:
             return self._error(self.estado_crear)
         return httpx.Response(
             201,
-            json={"id": self.id_qr, "qrString": self.qr_string, "qrImage": self.qr_imagen},
+            json={
+                "id": self.id_qr,
+                "qrString": self.qr_string,
+                "qrImage": self.qr_imagen,
+                "requestId": self.request_id,
+            },
         )
 
     def _respuesta_consulta(self, solicitud: httpx.Request) -> httpx.Response:

@@ -101,10 +101,67 @@ uv run --directory backend ruff check .
 uv run --directory backend ruff format --check .
 ```
 
-Esperado: `33 passed`, y ruff limpio.
+En el cierre de F2: `33 passed`, y ruff limpio.
 
 Commit sugerido:
 
 ```text
 refactor(001): modelo de cobro con pagos numerados, reloj y cliente de pey paginado (F2)
+```
+
+## F3 Historia 1: cobrar con un QR
+
+Fecha: 2026-11-14. Un cobro de monto fijo se valida en el servidor y, si pey responde bien, devuelve el QR. El monto libre sigue fuera de este corte: `0`, `null` y un monto ausente se rechazan.
+
+### Qué comprueban las pruebas
+
+`test_crear_cobro_pide_el_qr_a_pey_con_vigencia_de_10_minutos_y_el_id_del_cobro` mira la petición a pey: monto `0.01`, concepto, vigencia `600`, `numRef` de hasta 7 dígitos, imagen pedida y `metadata.cobroId`. La respuesta no devuelve `metadata`.
+
+`test_el_cobro_devuelve_todos_sus_campos` exige los 15 campos del contrato, un `id` de 12 caracteres, estado `pendiente`, vencimiento a los 600 s y ventana igual al vencimiento (gracia 0).
+
+`test_montos_no_validos_se_rechazan_sin_llamar_a_pey` cubre negativo, tres decimales, texto, más de $100 y, en este corte, `0`, `null` y ausente. El mensaje es «Escribe un monto mayor a $0 con máximo 2 decimales» o «El monto máximo de la demo es $100», y pey no recibe la petición.
+
+`test_el_concepto_se_limpia_y_usa_cobro_por_defecto` y `test_un_concepto_con_caracteres_no_imprimibles_se_rechaza` cubren espacios, el texto «Cobro», el máximo de 40 letras y los caracteres no imprimibles.
+
+`test_si_pey_falla_el_cobro_no_se_guarda_y_el_mensaje_dice_la_causa` cubre llave ausente, 401, 403, mantenimiento, error 500 y sin conexión. En todos, el cobro intentado responde 404. Si crear tarda demasiado, la respuesta es 502 «No se pudo crear el cobro con pey. Intenta de nuevo.»
+
+`test_crear_un_cobro_deja_una_linea_en_el_registro` busca una línea `INFO` con el id del cobro, el `codi_qr_id` y el `requestId`.
+
+```bash
+uv run --directory backend pytest -q tests/test_crear_cobro.py
+```
+
+### Medición del QR con imagen (CE-002)
+
+La haces tú, con el servidor local y la llave real. Crear el cobro no mueve dinero.
+
+1. Arranca el backend: `uv run --directory backend uvicorn app.main:app --port 8000`.
+2. En otra terminal:
+
+```bash
+curl -s -w '\n%{time_total}\n' -X POST http://localhost:8000/api/cobros \
+  -H 'Content-Type: application/json' \
+  -d '{"monto": 0.01, "concepto": "Prueba"}'
+```
+
+3. Anota aquí el `time_total`: ____ s.
+
+Si pasa de 3 s, se anota un TK en el §14 del plan y la decisión de la imagen pasa al issue #64.
+
+**Medición del 2026-11-14 (Hugo):** 201, cobro real de $0.01 con imagen, `time_total` de **9.09 s**. Fue una sola medición, con el servidor recién arrancado. Pasa de 3 s, así que queda como TK-5 en el §14 del plan y la decisión pasa a #64. La respuesta de crear no trajo `requestId`, así que la línea `INFO` salió sin él, como estaba previsto.
+
+### Cierre
+
+```bash
+uv run --directory backend pytest -q
+uv run --directory backend ruff check .
+uv run --directory backend ruff format --check .
+```
+
+Esperado: `53 passed`, y ruff limpio.
+
+Commit sugerido:
+
+```text
+feat(001): crear cobro CoDi de monto fijo con pey (F3)
 ```

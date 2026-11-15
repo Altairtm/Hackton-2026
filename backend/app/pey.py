@@ -22,9 +22,12 @@ class ErrorPey(Exception):
 
 @dataclass(frozen=True)
 class QrPey:
+    """QR creado por pey, con el requestId si la respuesta lo trae (spec 001, RF-001, RF-039)."""
+
     id: str  # IDC de Banxico; el webhook lo manda como codiQrId
     qr_string: str  # texto que se codifica en el QR
     qr_image: str | None  # PNG en base64, si se pidió
+    request_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -118,7 +121,12 @@ class ClientePey:
         )
         if not cuerpo.get("id") or not cuerpo.get("qrString"):
             raise ErrorPey(502, "error general", "pey no devolvió id ni qrString")
-        return QrPey(cuerpo["id"], cuerpo["qrString"], cuerpo.get("qrImage"))
+        return QrPey(
+            cuerpo["id"],
+            cuerpo["qrString"],
+            cuerpo.get("qrImage"),
+            cuerpo.get("requestId"),
+        )
 
     async def transacciones_qr(self, codi_qr_id: str) -> list[dict]:
         """GET de una página, para el script de prueba con pey real (spec 001, RF-025)."""

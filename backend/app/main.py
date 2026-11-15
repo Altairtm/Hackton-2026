@@ -10,7 +10,6 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, Field, field_validator
 from standardwebhooks.webhooks import Webhook, WebhookVerificationError
 
 from app.cobros import PAGADO, PENDIENTE, VENCIDO, Cobro, RepositorioCobros
@@ -27,17 +26,66 @@ SEGUNDOS_ENTRE_CONSULTAS_A_PEY = 3
 SEGUNDOS_ENTRE_LATIDOS_SSE = 15
 
 
-class SolicitudCobro(BaseModel):
-    monto: Decimal = Field(gt=0, decimal_places=2, description="Monto en pesos mexicanos")
-    concepto: str = Field(default="Cobro", max_length=40)
+MENSAJE_MONTO = "Escribe un monto mayor a $0 con máximo 2 decimales"
+MENSAJE_CONCEPTO_LARGO = "El concepto puede tener máximo 40 letras"
+MENSAJE_CONCEPTO_RARO = "El concepto tiene caracteres no válidos"
 
-    @field_validator("concepto")
-    @classmethod
-    def limpiar_concepto(cls, valor: str) -> str:
-        valor = " ".join(valor.split())
-        if any(not c.isprintable() for c in valor):
-            raise ValueError("El concepto tiene caracteres no válidos")
-        return valor or "Cobro"
+
+def validar_monto(valor: object, maximo: Decimal) -> Decimal:
+    """Monto fijo mayor a 0, con máximo 2 decimales (spec 001, RF-002, RF-004).
+
+    En el corte M0, 0, null y ausente se rechazan con el mismo mensaje.
+    """
+    if isinstance(valor, bool) or valor is None:
+        raise HTTPException(422, MENSAJE_MONTO)
+    if isinstance(valor, str):
+        try:
+            monto = Decimal(valor)
+        except InvalidOperation:
+            raise HTTPException(422, MENSAJE_MONTO) from None
+    elif isinstance(valor, Decimal):
+        monto = valor
+    elif isinstance(valor, int):
+        monto = Decimal(valor)
+    elif isinstance(valor, float):
+        monto = Decimal(str(valor))
+    else:
+        raise HTTPException(422, MENSAJE_MONTO)
+    exponente = monto.as_tuple().exponent
+    if isinstance(exponente, str) or exponente < -2 or not monto.is_finite():
+        raise HTTPException(422, MENSAJE_MONTO)
+    if monto > maximo:
+        raise HTTPException(422, f"El monto máximo de la demo es ${maximo}")
+    if monto <= 0:
+        raise HTTPException(422, MENSAJE_MONTO)
+    return monto
+
+
+def validar_concepto(valor: object) -> str:
+    """Limpia el concepto o usa Cobro. Rechaza lo no imprimible y lo de más de 40."""
+    if valor is None:
+        return "Cobro"
+    if not isinstance(valor, str) or any(not caracter.isprintable() for caracter in valor):
+        raise HTTPException(422, MENSAJE_CONCEPTO_RARO)
+    limpio = " ".join(valor.split())
+    if not limpio:
+        return "Cobro"
+    if len(limpio) > 40:
+        raise HTTPException(422, MENSAJE_CONCEPTO_LARGO)
+    return limpio
+
+
+async def leer_solicitud(request: Request, monto_maximo: Decimal) -> tuple[Decimal, str]:
+    """Lee el JSON y valida monto y concepto antes del límite por IP (spec 001, RF-004, RF-034)."""
+    try:
+        bruto = await request.body()
+        cuerpo = json.loads(bruto or b"{}", parse_float=Decimal)
+    except json.JSONDecodeError:
+        raise HTTPException(422, MENSAJE_MONTO) from None
+    if not isinstance(cuerpo, dict):
+        raise HTTPException(422, MENSAJE_MONTO)
+    monto = validar_monto(cuerpo.get("monto"), monto_maximo)
+    return monto, validar_concepto(cuerpo.get("concepto"))
 
 
 def configurar_registros() -> None:
@@ -155,16 +203,16 @@ def crear_app(
         )
 
     @app.post("/api/cobros", status_code=201)
-    async def crear_cobro(solicitud: SolicitudCobro, request: Request) -> dict:
-        if solicitud.monto > config.monto_maximo:
-            raise HTTPException(422, f"El monto máximo de la demo es ${config.monto_maximo}")
+    async def crear_cobro(request: Request) -> dict:
+        """Crea un cobro de monto fijo y su QR en pey (spec 001, RF-001, RF-006, RF-009, RF-010)."""
+        monto, concepto = await leer_solicitud(request, config.monto_maximo)
         ip = request.client.host if request.client else "desconocida"
         if not limite.permitir(ip):
             raise HTTPException(429, "Demasiados cobros seguidos. Espera un minuto.")
 
         cobro = cobros.nuevo(
-            solicitud.monto,
-            solicitud.concepto,
+            monto,
+            concepto,
             config.expiracion_segundos,
             ahora=app.state.reloj.ahora(),
         )
@@ -178,16 +226,31 @@ def crear_app(
             )
         except ErrorPey as error:
             cobros.descartar(cobro)
-            registro.error("pey no creó el cobro: %s (requestId=%s)", error, error.request_id)
+            registro.error(
+                "pey no creó el cobro %s (requestId=%s)",
+                cobro.id,
+                error.request_id,
+            )
             if error.tipo == "sin llave":
-                raise HTTPException(503, "El backend no tiene configurada la API key de pey")
+                raise HTTPException(503, "El servidor no tiene configurada la llave de pey")
             if error.estado in (401, 403):
-                raise HTTPException(502, "pey rechazó la API key del backend")
+                raise HTTPException(502, "pey rechazó la llave del servidor")
             if error.estado == 503:
-                raise HTTPException(503, "pey está en mantenimiento. Intenta de nuevo.")
+                raise HTTPException(
+                    503, "pey está en mantenimiento. Intenta de nuevo en unos minutos."
+                )
             raise HTTPException(502, "No se pudo crear el cobro con pey. Intenta de nuevo.")
 
         cobros.vincular_qr(cobro, qr.id, qr.qr_string, qr.qr_image)
+        if qr.request_id:
+            registro.info(
+                "QR creado cobro=%s codi_qr_id=%s requestId=%s",
+                cobro.id,
+                qr.id,
+                qr.request_id,
+            )
+        else:
+            registro.info("QR creado cobro=%s codi_qr_id=%s", cobro.id, qr.id)
         return cobro.publico()
 
     @app.get("/api/cobros/{cobro_id}")

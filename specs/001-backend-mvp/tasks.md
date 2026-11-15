@@ -3,7 +3,7 @@
 - **Spec**: [spec.md](spec.md), estado: Aprobada el 2026-11-14, con el cambio C-1 aplicado el mismo día
 - **Plan**: [plan.md](plan.md), estado: Aprobado el 2026-11-14, ajustado por TK-1 y TK-2 (§14)
 - **Fecha**: 2026-11-14
-- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de `/speckit-analyze` y de la QA (QT-1 a QT-7, aplicadas, con el cambio C-1 a la spec). F1 terminada (Grok, 2026-11-14). F2 terminada (Grok, 2026-11-14). El siguiente paso es F3, cuando Hugo lo pida.
+- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de `/speckit-analyze` y de la QA (QT-1 a QT-7, aplicadas, con el cambio C-1 a la spec). F1 terminada (Grok, 2026-11-14). F2 terminada (Grok, 2026-11-14). F3 terminada (Grok, 2026-11-14). El siguiente paso es F4, cuando Hugo lo pida.
 - **Entrada**: los documentos de `specs/001-backend-mvp/`: plan.md, spec.md, research.md, data-model.md, contracts/ y quickstart.md
 
 > **Notas para los comandos de spec-kit.**
@@ -194,7 +194,7 @@
 
 ### Pruebas de la historia 1 (primero, deben fallar antes de implementar)
 
-- [ ] T018 [US1] Escribir las pruebas de creación y validación en `backend/tests/test_crear_cobro.py` según [crear-cobro](contracts/crear-cobro.md)
+- [X] T018 [US1] Escribir las pruebas de creación y validación en `backend/tests/test_crear_cobro.py` según [crear-cobro](contracts/crear-cobro.md)
   - `test_crear_cobro_pide_el_qr_a_pey_con_vigencia_de_10_minutos_y_el_id_del_cobro`: la petición a pey lleva `amount: 0.01`, `concept: "Tacos"`, `expiration: 600`, `numRef` que cumple `^[0-9]{1,7}$`, `generateImage: true` y `metadata: {"cobroId": <id>}`; la respuesta es 201 y nunca incluye `metadata`.
   - `test_el_cobro_devuelve_todos_sus_campos`: los 15 campos del objeto cobro; `id` de 12 caracteres URL-safe; `estado: "pendiente"`; `expira_en == creado_en + 600`; `fin_ventana == expira_en` (gracia 0 en M0); `numero_de_pagos: 0`, `total_recibido: 0`, `pagado_en: null`, `pagos: []`.
   - `test_montos_no_validos_se_rechazan_sin_llamar_a_pey` (parametrizada): negativo, `0.001`, `"abc"`, `100.01` y, **en el corte M0**, `0`, `null` y ausente. 422 con "Escribe un monto mayor a $0 con máximo 2 decimales" o "El monto máximo de la demo es $100"; el pey simulado no recibe nada.
@@ -204,7 +204,7 @@
   - **RF**: RF-001, RF-002, RF-004, RF-005, RF-006, RF-007, RF-008, RF-039, RF-042
   - **Dep.**: T017
   - **Hecho cuando**: las pruebas existen y fallan por la razón esperada (mensajes, campos, validaciones o registro que faltan).
-- [ ] T019 [US1] Escribir las pruebas de fallas de pey al crear en `backend/tests/test_crear_cobro.py`
+- [X] T019 [US1] Escribir las pruebas de fallas de pey al crear en `backend/tests/test_crear_cobro.py`
   - `test_si_pey_falla_el_cobro_no_se_guarda_y_el_mensaje_dice_la_causa` (parametrizada): sin llave → 503 "El servidor no tiene configurada la llave de pey"; 401 y 403 → 502 "pey rechazó la llave del servidor"; 503 → 503 "pey está en mantenimiento. Intenta de nuevo en unos minutos."; 500 y sin conexión → 502 "No se pudo crear el cobro con pey. Intenta de nuevo.". En todos, `GET /api/cobros/{id}` del cobro intentado no existe (RF-009).
   - `test_si_pey_tarda_mas_de_10_segundos_al_crear_responde_intenta_de_nuevo`: el pey simulado lanza `httpx.ReadTimeout` → 502 "No se pudo crear el cobro con pey. Intenta de nuevo.".
   - **RF**: RF-009, RF-010 (QP-1)
@@ -213,7 +213,7 @@
 
 ### Implementación de la historia 1
 
-- [ ] T020 [US1] Implementar `POST /api/cobros` según el contrato en `backend/app/main.py`
+- [X] T020 [US1] Implementar `POST /api/cobros` según el contrato en `backend/app/main.py`
   - Validación con `Decimal`: monto fijo `0 < monto ≤ MONTO_MAXIMO` con máximo 2 decimales; en el corte M0, `0`, `null` o ausente se rechazan con el mismo mensaje. Concepto: espacios sobrantes quitados, "Cobro" si falta o queda vacío, "1 a 40 caracteres imprimibles". Mensajes exactos del contrato.
   - Las peticiones rechazadas con 422 no cuentan para el límite de 10 por minuto: el límite se aplica después de validar y antes de llamar a pey.
   - `id = secrets.token_urlsafe(9)` (12 caracteres); `num_ref` de 7 dígitos aleatorios; petición a pey con `amount`, `concept`, `expiration: 600`, `numRef`, `generateImage: true` y `metadata: {"cobroId": id}`.
@@ -222,7 +222,7 @@
   - **RF**: RF-001, RF-002, RF-004, RF-005, RF-006, RF-007, RF-008, RF-009, RF-010, RF-039, RF-042
   - **Dep.**: T016, T018, T019
   - **Hecho cuando**: las pruebas de T018 y T019 pasan y todo `pytest -q` sigue en verde.
-- [ ] T021 [US1] Cierre de F3: pruebas en verde, sección F3 en `verification-guide.md` (con la medición del QR con imagen) y commit sugerido
+- [X] T021 [US1] Cierre de F3: pruebas en verde, sección F3 en `verification-guide.md` (con la medición del QR con imagen) y commit sugerido
   - Paso manual para Hugo: crear un cobro **real** de $0.01 con `curl -s -w '\n%{time_total}\n' -X POST http://localhost:8000/api/cobros -H 'Content-Type: application/json' -d '{"monto": 0.01, "concepto": "Prueba"}'` y anotar el tiempo. Crearlo no mueve dinero. Si pasa de 3 s, se anota un TK en §14 del plan y la decisión pasa a #64 (QP-3, DP-15).
   - **RF**: CE-002
   - Commit sugerido: `feat(001): crear cobro CoDi de monto fijo con pey (F3)`.
