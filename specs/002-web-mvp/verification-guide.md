@@ -61,3 +61,81 @@ Commit sugerido:
 ```text
 test(002): preparar Playwright, servidor simulado y esqueleto de la web (F1)
 ```
+
+## F2 Base
+
+Fecha: 2026-11-15. Quedaron la lógica del teclado, la cuenta regresiva y los pagos avisados; crear, ver y cancelar contra el servidor; el sonido propio; el bloqueo de pantalla; y las vistas Teclado y Generando QR. Las teclas se ven y se pueden pulsar, pero todavía no cambian el monto: conectarlas es F3. Cobrar sigue desactivado con el monto vacío.
+
+Las pruebas de esta fase se escribieron antes del código y fallaron porque faltaban los módulos (`teclado.js`, `cuenta.js`, `avisados.js`, `servidor.js`, `vistas.js`). Después de implementarlas pasan.
+
+### Ver el teclado en local
+
+Sigue el quickstart §3 para servir la carpeta. En F2 no hace falta el servidor real ni la llave de pey: la vista Teclado no pide un cobro.
+
+1. Deja `web/config.js` con `servidor: ""` (el mismo origen).
+2. Sirve la web:
+
+```bash
+uv run --directory backend python -m http.server 5173 --directory ../web
+```
+
+3. Abre `http://localhost:5173` en el navegador, en modo celular, a 320 px de ancho.
+4. Al terminar, para ese proceso por su PID exacto (`lsof -ti tcp:5173` lo muestra y `kill <PID>` lo para). No uses `pkill`.
+
+**Esperado**: "PAGO FÁCIL", el monto en "$", las teclas 0 a 9, el punto y Borrar, el concepto (como máximo 40 caracteres) y Cobrar desactivado. La página no se desplaza hacia los lados. Pulsar un número deja el monto en "$": el teclado de la pantalla se conecta en F3.
+
+### Sonido sin archivo
+
+La página no importa el sonido al abrir. En la consola de esa misma página, antes de cualquier otro `import` de `js/sonido.js`:
+
+```javascript
+const urls = [];
+const Original = window.Audio;
+window.Audio = function (src) {
+  urls.push(String(src));
+  return new Original(src);
+};
+window.Audio.prototype = Original.prototype;
+const { desbloquear, sonar } = await import("./js/sonido.js");
+desbloquear();
+sonar();
+console.log(urls[0]);
+```
+
+**Esperado**: la dirección empieza por `blob:`. En la pestaña Red no aparece un `.wav` ni un `.mp3`. En `web/` no hay archivo de sonido: el WAV de dos tonos se arma en memoria al importar `js/sonido.js`.
+
+### Comandos
+
+```bash
+uv run --directory backend pytest ../web -q
+uv run --directory backend ruff check --config pyproject.toml ../web
+uv run --directory backend ruff format --config pyproject.toml --check ../web
+uv run --directory backend pytest -q
+uv run --directory backend ruff check .
+uv run --directory backend ruff format --check .
+```
+
+**Esperado en la web**: `52 passed, 29 skipped`. Las 29 saltadas son las pruebas de lógica pura en WebKit: llevan `only_browser("chromium")` porque no dependen del motor. En Chromium sí corren. Entran las 5 de F1. El aviso `PytestRemovedIn10Warning` de pytest-playwright sigue igual que en F1.
+
+**Esperado en el backend**: `109 passed`. F2 no tocó el backend. Sigue el aviso de Starlette sobre `TestClient` y httpx.
+
+Ruff de la web y del backend queda limpio. F2 no cambió `.gitignore`: no hacía falta ningún patrón nuevo.
+
+### Revisión de Claude de F2 (2026-11-15)
+
+Claude revisó lo que implementó Grok: las 5 pruebas nuevas, los 7 módulos de `web/js/`, y siguió esta guía a mano en el navegador integrado (320 px). Ninguna prueba fallaba. La suite es estable (3 corridas seguidas, 52 passed y 29 skipped).
+
+- **Corregido: la pantalla podía quedarse encendida para siempre.** Si se pedía soltar el bloqueo mientras el navegador todavía contestaba el pedido, el bloqueo llegaba después y nadie lo soltaba (RF-059). Prueba nueva `test_soltar_mientras_se_pide_el_bloqueo_no_lo_deja_pegado`, vista fallar (`soltados: 0`) antes del arreglo en `web/js/pantalla.js`.
+- **Corregido, sin cambio de comportamiento:** el JSDoc de `volumen` estaba colgado de `rebobinar` en `web/js/sonido.js`, y `_abortar` en tres archivos de pruebas usaba `# type: ignore` en lugar del tipo `Route`.
+- **Comprobado con el `Audio` real, sin simulacro** (las pruebas simulan `play`): el WAV que arma la página dura 0.6 s, no da error en Chromium ni en WebKit y la política de seguridad no registra ninguna violación. `fetch` sobre el `blob:` sí lo bloquea `connect-src`, como debe ser.
+- **Comprobado a mano con esta guía:** la vista Teclado no desborda a 320 px, las teclas van en orden de celular, Cobrar está apagado, pulsar un número deja el monto en "$" (las teclas se conectan en F3) y el fragmento del sonido da una dirección `blob:` sin ningún `.wav` en la red. La consola no muestra errores.
+
+Pendiente para F3, a la vista en el navegador: el campo del concepto es una caja vacía, sin texto de ayuda, y el estilo es el del navegador sin tocar. Es esperado en F2; el diseño real llega con la vista QR (T027).
+
+### Cierre
+
+Commit sugerido:
+
+```text
+feat(002): lógica pura, uso del servidor, sonido y vistas base de la web (F2)
+```

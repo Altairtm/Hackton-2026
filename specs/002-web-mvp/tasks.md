@@ -3,7 +3,7 @@
 - **Spec**: [spec.md](spec.md), estado: Aprobada el 2026-11-15, con el cambio C-3 aplicado (RF-078)
 - **Plan**: [plan.md](plan.md), estado: Aprobado el 2026-11-15 (DP-1 a DP-17, QP-1 a QP-5)
 - **Fecha**: 2026-11-15
-- **Estado**: `F1 terminada (2026-11-15)`. Hugo lo aprobó el 2026-11-15, después de `/speckit-analyze` y de la QA de tasks (QT-1 a QT-4 y sus 4 erratas, aplicadas; TK-1 en el plan). El C-2 a la spec 001 (F0) quedó aplicado el 2026-11-15 con el campo `hora_servidor`. Hugo pidió `/speckit-implement` de F1 el 2026-11-15. F2 no está empezada.
+- **Estado**: `F2 terminada (2026-11-15)`. F1 terminada el 2026-11-15 (Hugo la revisó). Hugo pidió implementar F2 el 2026-11-15. El C-2 a la spec 001 (F0) quedó aplicado el 2026-11-15 con el campo `hora_servidor`.
 - **Entrada**: los documentos de `specs/002-web-mvp/`: plan.md, spec.md, research.md, data-model.md, contracts/ y quickstart.md
 
 > **Notas para los comandos de spec-kit.**
@@ -158,7 +158,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
 
 **⚠️ Ninguna historia empieza antes de cerrar esta fase.**
 
-- [ ] T010 [P] Escribir las pruebas del teclado y de la pintura de las vistas Teclado y Generando QR en `web/tests/test_teclado.py` (archivo nuevo)
+- [X] T010 [P] Escribir las pruebas del teclado y de la pintura de las vistas Teclado y Generando QR en `web/tests/test_teclado.py` (archivo nuevo)
   - Lógica pura (`only_browser("chromium")`, con `import("/js/teclado.js")` dentro de `page.evaluate`):
     - `test_el_teclado_escribe_el_monto_con_dos_decimales_como_maximo`: `"25.50"` + `"1"` → `"25.50"`; `"25.5"` + `"punto"` → `"25.5"` (segundo punto); `"25.5"` + `"borrar"` → `"25."`; `""` + `"borrar"` → `""`.
     - `test_el_cero_inicial_se_reemplaza_y_el_punto_inicial_escribe_cero_punto`: `"0"` + `"7"` → `"7"`; `"0"` + `"0"` → `"0"`; `""` + `"punto"` → `"0."`; `"0"` + `"punto"` → `"0."`.
@@ -171,7 +171,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **RF**: RF-001, RF-002, RF-003, RF-004, RF-005, RF-006, RF-010, RF-060, RF-061, RF-065, RF-066, RF-067, RF-068
   - **Dep.**: T009
   - **Hecho cuando**: las pruebas existen y fallan porque `web/js/teclado.js` y `web/js/vistas.js` no existen.
-- [ ] T011 [P] Escribir las pruebas de la cuenta regresiva y de `crear_cobro` en `web/tests/test_crear_y_mostrar_qr.py` (archivo nuevo)
+- [X] T011 [P] Escribir las pruebas de la cuenta regresiva y de `crear_cobro` en `web/tests/test_crear_y_mostrar_qr.py` (archivo nuevo)
   - Lógica pura de `cuenta.js` (`only_browser("chromium")`):
     - `test_la_cuenta_descuenta_el_desfase_con_el_servidor_en_la_funcion`: cobro con `expira_en = T + 600` y `hora_servidor = T`; con el celular en `T + 300`, `desfase` = −300 y `restante` = 600.
     - `test_si_crear_tardo_9_segundos_la_cuenta_arranca_en_9_51_en_la_funcion`: `creado_en = T`, `hora_servidor = T + 9` → `formato(restante(…))` = "9:51".
@@ -189,7 +189,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **RF**: RF-009, RF-012, RF-013, RF-018, RF-019, RF-062, RF-063, RF-064, RF-078
   - **Dep.**: T009
   - **Hecho cuando**: las pruebas existen y fallan porque `web/js/cuenta.js` y `web/js/servidor.js` no existen.
-- [ ] T012 [P] Escribir las pruebas de pagos avisados, sonido y pantalla encendida en `web/tests/test_pago_recibido.py` (archivo nuevo)
+- [X] T012 [P] Escribir las pruebas de pagos avisados, sonido y pantalla encendida en `web/tests/test_pago_recibido.py` (archivo nuevo)
   - `avisados.js` (`only_browser("chromium")`):
     - `test_avisados_devuelve_solo_los_pagos_con_numero_mayor_al_ultimo_avisado`: con pagos 1 y 2, `nuevos` devuelve los dos; otra llamada con 1, 2 y 3 devuelve solo el 3; otra igual no devuelve nada.
     - `test_avisados_lleva_la_cuenta_por_cobro`: el pago 1 de otro cobro sí es nuevo.
@@ -204,7 +204,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **RF**: RF-022, RF-024, RF-025, RF-029, RF-053, RF-058, RF-059
   - **Dep.**: T009
   - **Hecho cuando**: las pruebas existen y fallan porque `web/js/avisados.js`, `web/js/sonido.js` y `web/js/pantalla.js` no existen.
-- [ ] T013 [P] Escribir las pruebas de `ver_cobro` en `web/tests/test_respaldo.py` (archivo nuevo) y las de `cancelar_cobro` en `web/tests/test_cobros_anteriores.py` (archivo nuevo)
+- [X] T013 [P] Escribir las pruebas de `ver_cobro` en `web/tests/test_respaldo.py` (archivo nuevo) y las de `cancelar_cobro` en `web/tests/test_cobros_anteriores.py` (archivo nuevo)
   - Todo `servidor.js` se hace en F2, como dice el plan §8 (QT-4).
   - `ver_cobro`, `only_browser("chromium")`, contra el servidor simulado:
     - `test_ver_cobro_200_devuelve_el_cobro`.
@@ -217,22 +217,22 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **RF**: RF-030, RF-033, RF-047, RF-050, RF-056, RF-057
   - **Dep.**: T009
   - **Hecho cuando**: las pruebas existen y fallan porque `ver_cobro` y `cancelar_cobro` no existen.
-- [ ] T014 [P] Implementar `aplicar_tecla(texto, tecla)`, `cobrar_activo(texto)` y `monto_libre_activo(texto)` en `web/js/teclado.js` (archivo nuevo, puro)
+- [X] T014 [P] Implementar `aplicar_tecla(texto, tecla)`, `cobrar_activo(texto)` y `monto_libre_activo(texto)` en `web/js/teclado.js` (archivo nuevo, puro)
   - Teclas: `"0"` a `"9"`, `"punto"` y `"borrar"`. Reglas: tercer decimal, segundo punto y sexto dígito entero se ignoran; `"0"` + dígito reemplaza el 0; punto con el monto vacío escribe `"0."` (R-13, DP-16). Sin DOM.
   - **RF**: RF-001, RF-003, RF-004, RF-006, RF-065, RF-066, RF-067, RF-068
   - **Dep.**: T010
   - **Hecho cuando**: las pruebas de lógica pura de T010 pasan.
-- [ ] T015 [P] Implementar `desfase(cobro, ahora)`, `restante(cobro, desfase, ahora)` y `formato(segundos)` en `web/js/cuenta.js` (archivo nuevo, puro)
+- [X] T015 [P] Implementar `desfase(cobro, ahora)`, `restante(cobro, desfase, ahora)` y `formato(segundos)` en `web/js/cuenta.js` (archivo nuevo, puro)
   - `ahora` en segundos Unix (`Date.now() / 1000`). `desfase = hora_servidor − ahora`; sin `hora_servidor`, 0 y `console.warn` (R-6). `restante = expira_en − (ahora + desfase)`. `formato` trunca y nunca baja de "0:00".
   - **RF**: RF-018, RF-019
   - **Dep.**: T011
   - **Hecho cuando**: las pruebas de `cuenta.js` de T011 pasan.
-- [ ] T016 [P] Implementar `Avisados` en `web/js/avisados.js` (archivo nuevo, puro)
+- [X] T016 [P] Implementar `Avisados` en `web/js/avisados.js` (archivo nuevo, puro)
   - Por cobro, `ultimo_avisado` (0 al empezar). `nuevos(cobro)` devuelve los pagos con `numero` mayor, en orden, y sube `ultimo_avisado`; `marcar_todos(cobro)` lo fija en `numero_de_pagos` sin devolver nada (data-model §3).
   - **RF**: RF-029, RF-053, RF-075
   - **Dep.**: T012
   - **Hecho cuando**: las pruebas de `avisados.js` de T012 pasan.
-- [ ] T017 [P] Implementar `crear_cobro(monto, concepto)`, `ver_cobro(id)` y `cancelar_cobro(id)` en `web/js/servidor.js` (archivo nuevo)
+- [X] T017 [P] Implementar `crear_cobro(monto, concepto)`, `ver_cobro(id)` y `cancelar_cobro(id)` en `web/js/servidor.js` (archivo nuevo)
   - Todas las rutas son `window.PAGO_FACIL.servidor + ruta` (RF-064). Sin cabeceras propias salvo `Content-Type: application/json` al crear.
   - `crear_cobro`: `fetch` con `AbortController` y un `setTimeout` de 15 s (QP-4, nunca `AbortSignal.timeout`). Resultado `{ cobro }` o `{ mensaje }`: 201 con `qr_imagen` → cobro; 201 sin imagen → "No se pudo mostrar el QR. Intenta de nuevo."; 422, 429, 502 o 503 → `detail`; fallo de red o 15 s → "No hay conexión con el servidor. Revisa tu internet e intenta de nuevo.". Otro código → el mismo mensaje de conexión.
   - `ver_cobro`: `{ cobro }`, `{ no_existe: true }` (404) o `{ sin_conexion: true }`.
@@ -241,23 +241,23 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **RF**: RF-009, RF-012, RF-013, RF-030, RF-033, RF-047, RF-050, RF-056, RF-057, RF-062, RF-063, RF-064, RF-078
   - **Dep.**: T011, T013
   - **Hecho cuando**: las pruebas de `crear_cobro` de T011 y todas las de T013 pasan.
-- [ ] T018 [P] Implementar el sonido y la vibración en `web/js/sonido.js` (archivo nuevo)
+- [X] T018 [P] Implementar el sonido y la vibración en `web/js/sonido.js` (archivo nuevo)
   - Al importar, arma en memoria un WAV PCM de unos 0.6 s con dos tonos y lo deja en un `HTMLAudioElement` con `URL.createObjectURL` (R-7, DP-10). `desbloquear()` lo reproduce con volumen 0 y lo detiene; `sonar()` lo reproduce desde el inicio con volumen 1; `vibrar()` llama a `navigator.vibrate([200, 100, 200])` solo si existe (R-8). Ningún error sale de estas funciones.
   - **RF**: RF-022, RF-024, RF-025
   - **Dep.**: T012
   - **Hecho cuando**: las pruebas de `sonido.js` de T012 pasan en los dos celulares.
-- [ ] T019 [P] Implementar `mantener_encendida(si_o_no)` en `web/js/pantalla.js` (archivo nuevo)
+- [X] T019 [P] Implementar `mantener_encendida(si_o_no)` en `web/js/pantalla.js` (archivo nuevo)
   - Pide `navigator.wakeLock.request("screen")` solo si existe y no hay un bloqueo vivo; lo suelta con `release()`; en `visibilitychange` a visible lo vuelve a pedir si debe estar encendida (R-9, DP-11). Errores atrapados y anotados en la consola.
   - **RF**: RF-058, RF-059
   - **Dep.**: T012
   - **Hecho cuando**: las pruebas de `pantalla.js` de T012 pasan en los dos celulares.
-- [ ] T020 Implementar las vistas Teclado y Generando QR en `web/js/vistas.js` (archivo nuevo) y mostrarlas desde `web/js/app.js`
+- [X] T020 Implementar las vistas Teclado y Generando QR en `web/js/vistas.js` (archivo nuevo) y mostrarlas desde `web/js/app.js`
   - Una función por vista que recibe el estado (data-model §1) y lo pinta solo con `textContent` y atributos fijos (DP-13). Una sola vista visible a la vez. Teclado: las teclas, `monto` como "$" + el texto tecleado, `concepto` con `maxlength="40"`, `cobrar` desactivado según `cobrar_activo` y `mensaje` vacío. Generando QR: "Generando QR…" con un indicador de carga hecho en CSS.
   - `app.js` crea el estado inicial y muestra la vista Teclado al cargar.
   - **RF**: RF-001, RF-002, RF-005, RF-006, RF-010, RF-060, RF-077
   - **Dep.**: T010, T014
   - **Hecho cuando**: las pruebas de pintura de T010 pasan en los dos celulares.
-- [ ] T021 Cierre de F2: pruebas en verde, sección F2 en `verification-guide.md` y commit sugerido
+- [X] T021 Cierre de F2: pruebas en verde, sección F2 en `verification-guide.md` y commit sugerido
   - La guía dice cómo ver la vista Teclado en local (quickstart §3) y cómo comprobar en la consola del navegador que el sonido se genera sin archivo.
   - Commit sugerido: `feat(002): lógica pura, uso del servidor, sonido y vistas base de la web (F2)`.
   - **RF**: —
