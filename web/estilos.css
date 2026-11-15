@@ -1,0 +1,10 @@
+/* Desde 320 px: la caja incluye el borde y no hay anchos fijos (spec 002, RF-061). */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}

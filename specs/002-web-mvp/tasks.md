@@ -3,7 +3,7 @@
 - **Spec**: [spec.md](spec.md), estado: Aprobada el 2026-11-15, con el cambio C-3 aplicado (RF-078)
 - **Plan**: [plan.md](plan.md), estado: Aprobado el 2026-11-15 (DP-1 a DP-17, QP-1 a QP-5)
 - **Fecha**: 2026-11-15
-- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-15, después de `/speckit-analyze` y de la QA de tasks (QT-1 a QT-4 y sus 4 erratas, aplicadas; TK-1 en el plan). Aprobar no autoriza a empezar F1: se espera a que Hugo pida `/speckit-implement`. El C-2 a la spec 001 (F0) quedó aplicado el 2026-11-15 con el campo `hora_servidor`.
+- **Estado**: `F1 terminada (2026-11-15)`. Hugo lo aprobó el 2026-11-15, después de `/speckit-analyze` y de la QA de tasks (QT-1 a QT-4 y sus 4 erratas, aplicadas; TK-1 en el plan). El C-2 a la spec 001 (F0) quedó aplicado el 2026-11-15 con el campo `hora_servidor`. Hugo pidió `/speckit-implement` de F1 el 2026-11-15. F2 no está empezada.
 - **Entrada**: los documentos de `specs/002-web-mvp/`: plan.md, spec.md, research.md, data-model.md, contracts/ y quickstart.md
 
 > **Notas para los comandos de spec-kit.**
@@ -76,30 +76,30 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
 
 **Propósito**: Playwright y sus navegadores, el servidor simulado, las páginas de los dos celulares y el esqueleto de la web, sin comportamiento todavía.
 
-- [ ] T001 Agregar `pytest-playwright` 0.10.0 y `playwright` 1.64.1 como dependencias de desarrollo en `backend/pyproject.toml` y `backend/uv.lock`
+- [X] T001 Agregar `pytest-playwright` 0.10.0 y `playwright` 1.64.1 como dependencias de desarrollo en `backend/pyproject.toml` y `backend/uv.lock`
   - Comando: `cd backend && uv add --dev "pytest-playwright==0.10.0" "playwright==1.64.1"`. Las dos versiones tienen más de dos semanas (H-13). Sin `pip install`.
   - **RF**: — (DP-1, DP-15, principio V)
   - **Dep.**: ninguna
   - **Hecho cuando**: `uv run --directory backend pytest -q` sigue en `104 passed` y `uv run --directory backend python -c "import playwright, pytest_playwright"` no falla.
-- [ ] T002 Instalar Chromium y WebKit para el entorno de `backend/` y comprobar que arrancan en esta Mac (QP-5), sin dejar archivos en el repositorio
+- [X] T002 Instalar Chromium y WebKit para el entorno de `backend/` y comprobar que arrancan en esta Mac (QP-5), sin dejar archivos en el repositorio
   - Comando: `uv run --directory backend playwright install chromium webkit`.
   - Prueba vacía: un script en el directorio temporal de la sesión (fuera del repositorio) que, con `sync_playwright`, abre cada navegador, carga `about:blank` y lo cierra.
   - Si WebKit no arranca: probar la versión más nueva de `playwright` con soporte para este macOS que tenga al menos dos semanas. Si no hay ninguna, WebKit queda solo para la integración continua en Linux (#35), en local se corre solo Chromium y se anota como TK en el plan §14.
   - **RF**: — (QP-5, CE-001)
   - **Dep.**: T001
   - **Hecho cuando**: los dos navegadores abren `about:blank`, o la alternativa está aplicada y anotada como TK.
-- [ ] T003 Crear `web/pytest.ini` (QP-3)
+- [X] T003 Crear `web/pytest.ini` (QP-3)
   - Contenido: `[pytest]`, `testpaths = tests`, `asyncio_default_fixture_loop_scope = function` y `addopts = --browser chromium --browser webkit` (los dos celulares de plan §7; si T002 aplicó la alternativa, solo `--browser chromium`).
   - **RF**: — (QP-3, DP-15)
   - **Dep.**: T002
   - **Hecho cuando**: `uv run --directory backend pytest ../web -q` informa `rootdir: …/web`, encuentra `testpaths` y no muestra `PytestDeprecationWarning` (todavía no hay pruebas: "no tests ran").
-- [ ] T004 [P] Escribir las pruebas de arranque en `web/tests/test_seguridad.py` (archivo nuevo)
+- [X] T004 [P] Escribir las pruebas de arranque en `web/tests/test_seguridad.py` (archivo nuevo)
   - `test_la_pagina_abre_y_muestra_pago_facil`: en los dos celulares, `[data-prueba="marca"]` dice "PAGO FÁCIL".
   - `test_la_pagina_carga_sin_errores_ni_bloqueos_de_la_politica`: ningún mensaje de consola de tipo `error` ni evento `securitypolicyviolation` al cargar (política de R-11 y QP-2).
   - **RF**: RF-060, RF-077 (política de seguridad de contenido)
   - **Dep.**: T003
   - **Hecho cuando**: las dos pruebas existen y fallan porque no hay servidor simulado ni página.
-- [ ] T005 [P] Crear el servidor simulado en `web/tests/servidor_simulado.py` (archivo nuevo, R-2)
+- [X] T005 [P] Crear el servidor simulado en `web/tests/servidor_simulado.py` (archivo nuevo, R-2)
   - App FastAPI que corre con uvicorn en un hilo, en `127.0.0.1` y un puerto libre. Sirve los archivos de `web/` (sin `tests/`) y las rutas de [contracts/uso-del-servidor.md](contracts/uso-del-servidor.md) en el mismo origen.
   - `cobro_de_prueba(id=None, monto=25.5, concepto="Tacos", creado_en=…, hora_servidor=…, pagos=[], qr_imagen=<PNG 1×1 en base64>)` arma un objeto cobro (con `id=None`, un id nuevo de 12 caracteres `[A-Za-z0-9]`) con los campos del [objeto cobro de la 001](../001-backend-mvp/contracts/crear-cobro.md#objeto-cobro) más `hora_servidor`: `expira_en = creado_en + 600`, `fin_ventana = expira_en + 600`, `monto_libre = monto is None`, `estado` calculado igual que el servidor y cada pago con `numero`, `monto_recibido`, `monto_distinto` y `pagado_en`.
   - Métodos que usan las pruebas (todos seguros entre hilos, con `loop.call_soon_threadsafe` para el canal):
@@ -117,7 +117,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **RF**: — (R-2, DP-7, principio V)
   - **Dep.**: T003
   - **Hecho cuando**: `uv run --directory backend python -c "import sys; sys.path.insert(0, '../web/tests'); import servidor_simulado"` no falla.
-- [ ] T006 Crear `web/tests/conftest.py` con el servidor simulado y las páginas de los dos celulares
+- [X] T006 Crear `web/tests/conftest.py` con el servidor simulado y las páginas de los dos celulares
   - Fixture `servidor` (alcance de sesión arranca el hilo; por prueba llama a `reiniciar()`).
   - `browser_context_args` según `browser_name`: `playwright.devices["Pixel 7"]` en Chromium y `playwright.devices["iPhone 13"]` en WebKit, sin la clave `default_browser_type`.
   - Fixture `pagina`: la `page` de pytest-playwright con `add_init_script` que, antes de cargar la web:
@@ -129,7 +129,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **RF**: — (plan §7)
   - **Dep.**: T005
   - **Hecho cuando**: las pruebas de T004 se ejecutan en los dos celulares y fallan solo porque no existe `web/index.html`.
-- [ ] T007 Crear el esqueleto de la web: `web/index.html`, `web/config.js`, `web/estilos.css` y `web/js/app.js` (archivos nuevos)
+- [X] T007 Crear el esqueleto de la web: `web/index.html`, `web/config.js`, `web/estilos.css` y `web/js/app.js` (archivos nuevos)
   - `index.html`: `lang="es"`, `meta viewport`, la marca `<h1 data-prueba="marca">PAGO FÁCIL</h1>`, un contenedor de vistas vacío, `config.js` antes de `<script type="module" src="js/app.js">`, y la política en `<meta http-equiv="Content-Security-Policy">` exactamente como R-11: `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self' http://localhost:8000 https:`.
   - `config.js`: `window.PAGO_FACIL = { servidor: "" };` con un comentario que dice que la cadena vacía es el mismo origen (RF-064).
   - `estilos.css`: base desde 320 px (`box-sizing`, sin anchos fijos mayores a 320 px).
@@ -137,13 +137,13 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **RF**: RF-060, RF-064, RF-077
   - **Dep.**: T004, T006
   - **Hecho cuando**: las pruebas de T004 pasan en Chromium y en WebKit.
-- [ ] T008 [P] Agregar el comando de las pruebas de la web en `AGENTS.md` §6
+- [X] T008 [P] Agregar el comando de las pruebas de la web en `AGENTS.md` §6
   - La fila "Pruebas de la web" pasa a `uv run --directory backend pytest ../web -q`, con una nota: "la primera vez, `uv run --directory backend playwright install chromium webkit`".
   - Otra fila, "Lint y formato de las pruebas de la web": `uv run --directory backend ruff check --config pyproject.toml ../web` y `uv run --directory backend ruff format --config pyproject.toml --check ../web` (regla 5).
   - **RF**: — (DP-15, QP-3)
   - **Dep.**: T003
   - **Hecho cuando**: la fila ya no dice "Las define el plan de la primera spec de la web".
-- [ ] T009 Cierre de F1: pruebas en verde, sección F1 en `specs/002-web-mvp/verification-guide.md` (archivo nuevo) y commit sugerido
+- [X] T009 Cierre de F1: pruebas en verde, sección F1 en `specs/002-web-mvp/verification-guide.md` (archivo nuevo) y commit sugerido
   - La guía dice cómo instalar los navegadores, cómo correr las pruebas de la web, qué versión de Playwright se fijó y qué pasó con WebKit en esta Mac (T002).
   - Commit sugerido: `test(002): preparar Playwright, servidor simulado y esqueleto de la web (F1)`.
   - **RF**: —
