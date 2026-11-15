@@ -59,7 +59,7 @@ curl -N http://localhost:8000/api/cobros/<id>/eventos
 2. Paga desde la app del banco, en la opción CoDi.
 3. **Esperado, sin aviso de pey configurado**: en menos de 5 s después de que pey registra el pago, el canal emite `event: pago` con `numero: 1` gracias a la consulta automática (RF-040, CE-008).
 4. **Esperado, con aviso de pey configurado** (servidor desplegado, #65): el canal emite `pago` en menos de 2 s después de que pey entrega el aviso (CE-003).
-5. Al terminar la ventana, el canal emite `event: fin` y se cierra.
+5. A los 10 minutos el canal emite `event: vencido` y sigue abierto. `fin_ventana` es el vencimiento más `GRACIA_SEGUNDOS` (600 por defecto): a los 20 minutos emite `event: fin` y se cierra. Un pago durante esos 10 minutos de gracia también llega como `event: pago`.
 
 ## 5. Aviso de pey firmado (local, sin dinero)
 
@@ -86,7 +86,7 @@ Lo que el hosting necesita para que el backend cumpla la spec:
    | `PEY_WEBHOOK_SECRET` | El secreto que muestra pey al crear el aviso (una sola vez) |
    | `WEB_ORIGIN` | La URL pública de la web (#64), por ejemplo `https://pago-facil.ejemplo.app` |
    | `PROXIES_CONFIABLES` | La IP del proxy del hosting, o `*` solo si el hosting no permite conexiones directas al servidor |
-   | `GRACIA_SEGUNDOS` | No se define en el corte M0 (vale 0); desde el corte 2, 600 por defecto |
+   | `GRACIA_SEGUNDOS` | No hace falta definirla: el valor por defecto del código es 600. Poner 0 cierra el canal al vencer, como en el corte M0 |
 
 3. **Aviso de pey**: en el portal de pey, el webhook apunta a `https://<backend>/webhooks/pey`. Se comprueba con `GET /salud` que `secreto_aviso_pey` sea `true`.
 4. **El canal no se corta ni se retiene**: abre `curl -N https://<backend>/api/cobros/<id>/eventos` y comprueba que `event: estado` llega de inmediato y la señal de vida cada 15 s. Si los eventos llegan juntos al final, el proxy está reteniendo la respuesta.
