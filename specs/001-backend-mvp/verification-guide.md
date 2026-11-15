@@ -192,6 +192,8 @@ curl -N http://localhost:8000/api/cobros/<id>/eventos
 
 Se ve `retry: 3000`, luego `event: estado`. A los 15 s, `: sigo conectado`. A los 10 minutos, `event: vencido` y enseguida `event: fin`, y curl termina. El reloj de las pruebas recorre esos plazos sin esperar; este curl usa el reloj real.
 
+> Desde F6, con `GRACIA_SEGUNDOS` en 600 por defecto: a los 10 minutos llega `event: vencido` y el canal sigue abierto. `event: fin` llega a los 20 minutos, en `fin_ventana`. Para ver el comportamiento de F4, arranca con `GRACIA_SEGUNDOS=0`.
+
 ### Cierre
 
 ```bash
@@ -309,6 +311,8 @@ uv run --directory backend ruff format --check .
 En el cierre de F5: `95 passed`, y ruff limpio. Las 6 pruebas nuevas son de la revisión de Claude: un aviso firmado con `amount` en `NaN`, `Infinity`, texto, `true` o `null` responde 400 «Aviso con datos no válidos», no registra el pago y el reintento con el mismo `webhook-id` sí se procesa (`test_un_aviso_con_monto_ilegible_responde_400_y_no_registra_el_pago`). El corte M0 queda listo en código. Los dos pagos reales y el despliegue siguen pendientes, como dice la sección de arriba.
 
 `grep -n "codiQrId\|pagado\b" backend/README.md` no encuentra el contrato viejo.
+
+> Desde F6 ese `grep` encuentra la palabra *pagado*, que es el estado del cobro y no el evento viejo. Para comprobar el contrato viejo usa `grep -nE 'codiQrId|"pagado"|event: pagado' backend/README.md`, que tiene que salir vacío. El 2026-11-15 salió vacío.
 
 Commit sugerido, uno solo para F4 y F5:
 
@@ -487,4 +491,72 @@ Commit sugerido:
 
 ```text
 feat(001): cancelar un cobro pendiente (F8)
+```
+
+## FN Pulido del corte 2
+
+Fecha: 2026-11-15. El README cuenta la gracia, el monto libre, la cancelación y el evento `cancelado`. El quickstart ya describe la ventana de 20 minutos. La revisión de seguridad del corte M0 se repitió con la ruta de cancelar.
+
+### README
+
+`backend/README.md` enlaza `specs/001-backend-mvp/contracts/` y nombra cada ruta y cada evento:
+
+- `POST /api/cobros`, `GET /api/cobros/{id}`, `POST /api/cobros/{id}/cancelar`, `GET /api/cobros/{id}/eventos`, `POST /webhooks/pey`, `GET /salud`.
+- Eventos `estado`, `pago`, `vencido`, `cancelado` y `fin`, más el comentario `: sigo conectado`.
+- `GRACIA_SEGUNDOS` por defecto 600.
+- Un `monto` ausente, `null` o `0` crea un cobro de monto libre.
+
+### Revisión de seguridad del corte 2
+
+Revisado el 2026-11-15. La lista es la del corte M0, más la cancelación.
+
+| Punto | Resultado |
+|---|---|
+| Secretos solo en `backend/.env` o en el hosting | Cumple en el repo. El `git grep` de abajo no encontró nada. `.env` no se abre ni se cita. |
+| Firma del aviso antes de leer el JSON | Cumple. `Webhook.verify` sigue antes de `json.loads`. Lo cubre `test_un_aviso_sin_firma_valida_se_rechaza_sin_cambiar_nada`. |
+| Entradas validadas en el servidor | Cumple. Monto, concepto y la cancelación se deciden en el servidor. |
+| CORS solo para `WEB_ORIGIN` | Cumple. Métodos `GET` y `POST`, que es el método de cancelar. |
+| 10 cobros por minuto y 10 canales por IP real | Cumple en `tests/test_proteccion.py`. |
+| `PROXIES_CONFIABLES` distinto de `*` | El valor por defecto sigue en `127.0.0.1`. En el hosting (#65) es la IP del proxy, o `*` solo si no hay conexiones directas. |
+| Un solo worker | Sigue documentado en el README y en el quickstart §7, sin `--workers`. |
+| Cancelar | Solo `POST /api/cobros/{id}/cancelar`. 404 «Ese cobro no existe» y 409 «Solo se puede cancelar un cobro que todavía no se paga ni vence». El cuerpo es el objeto cobro o `{"detail": "..."}`, sin llave, secreto ni datos bancarios. Lo cubren `tests/test_cancelar_cobro.py`. |
+
+CE-009, otra vez, sin abrir `backend/.env`:
+
+```bash
+git grep -nE "whsec_[A-Za-z0-9+/=]{16,}|Bearer [A-Za-z0-9._-]{16,}" -- ':!backend/tests'
+```
+
+Resultado del 2026-11-15: salida vacía (el comando termina en 1). En `backend/tests/` siguen solo los secretos falsos de `conftest.py` y el otro falso de `test_aviso_pey.py`.
+
+Un aviso sin firma, en el servidor local del quickstart (puerto 8766, sin imprimir `.env`): **503 en 0.0008 s**, porque el secreto del aviso no está configurado. Está por debajo de 1 s y no llama a pey.
+
+### Quickstart, pasos 1 a 7
+
+| Paso | Resultado del 2026-11-15 |
+|---|---|
+| 1. Pruebas y ruff | `104 passed`. `ruff check` y `ruff format --check` limpios. |
+| 2. Arranque y `/salud` | Servidor local en `127.0.0.1:8766`. `{"estado":"ok","llave_pey":true,"secreto_aviso_pey":false}`. Solo esos tres campos. |
+| 3. Crear un cobro real y abrir el canal | No se creó un QR real en esta pasada. Crearlo llama a pey. El objeto y `event: estado` los cubren las pruebas. Lo haces tú con el paso 3 del quickstart cuando autorices el cobro. |
+| 4. Pago real de $0.01 | Pendiente de tu autorización, igual que en F5, F6, F7 y F8. El texto del quickstart ahora dice que `vencido` llega a los 10 minutos y `fin` a los 20. |
+| 5. Aviso firmado a mano | No se firmó con el secreto real. Lo cubre `test_un_aviso_sin_firma_valida_se_rechaza_sin_cambiar_nada`. |
+| 6. Once cobros de $150 | Los 11 respondieron **422**. No se llama a pey. |
+| 7. Despliegue | Revisado contra el código. No hay despliegue (#65). `GRACIA_SEGUNDOS` queda documentada como 600 por defecto. |
+
+No hizo falta un TK: lo que no coincidía con la gracia de 600 se corrigió en el quickstart.
+
+### Cierre
+
+```bash
+uv run --directory backend pytest -q
+uv run --directory backend ruff check .
+uv run --directory backend ruff format --check .
+```
+
+En el cierre de FN: `104 passed`, y ruff limpio. Con esto terminan las tareas de la spec 001. Los pagos reales de $0.01 siguen pendientes de tu autorización.
+
+Commit sugerido:
+
+```text
+docs(001): pulido del corte 2 y quickstart validado (FN)
 ```

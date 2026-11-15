@@ -3,7 +3,7 @@
 - **Spec**: [spec.md](spec.md), estado: Aprobada el 2026-11-14, con el cambio C-1 aplicado el mismo día
 - **Plan**: [plan.md](plan.md), estado: Aprobado el 2026-11-14, ajustado por TK-1 y TK-2 (§14)
 - **Fecha**: 2026-11-14
-- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de `/speckit-analyze` y de la QA (QT-1 a QT-7, aplicadas, con el cambio C-1 a la spec). F1 terminada (Grok, 2026-11-14). F2 terminada (Grok, 2026-11-14). F3 terminada (Grok, 2026-11-14). F4 terminada (Grok, 2026-11-14). F5 terminada en código (Grok, 2026-11-14). F4 y F5 revisadas por Claude el 2026-11-14, con una corrección (400 para un `amount` que no es un número finito): 95 passed y ruff limpio. Los dos pagos reales de $0.01 quedan pendientes de la autorización de Hugo y de CoDi (se activa el 15 nov). Si a las 10:00 del 15 nov no están hechos, se sigue el riesgo de §11 del plan: desplegar este cierre en verde y avisarlo en el formulario. F6 terminada en código (Grok, 2026-11-14): 97 passed y ruff limpio. El pago real tardío de $0.01 queda pendiente de la autorización de Hugo. Si el banco no deja pagar un QR vencido, se anota la pregunta abierta de la spec §8.5. F7 terminada en código (Grok, 2026-11-14): 96 passed y ruff limpio. El pago real de monto libre de $0.01 queda pendiente de la autorización de Hugo. F8 terminada en código (Grok, 2026-11-14). F6, F7 y F8 revisadas por Claude el 2026-11-14: 104 passed y ruff limpio. El pago real a un QR cancelado queda pendiente de la autorización de Hugo. El siguiente paso es FN, cuando Hugo lo pida.
+- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de `/speckit-analyze` y de la QA (QT-1 a QT-7, aplicadas, con el cambio C-1 a la spec). F1 terminada (Grok, 2026-11-14). F2 terminada (Grok, 2026-11-14). F3 terminada (Grok, 2026-11-14). F4 terminada (Grok, 2026-11-14). F5 terminada en código (Grok, 2026-11-14). F4 y F5 revisadas por Claude el 2026-11-14, con una corrección (400 para un `amount` que no es un número finito): 95 passed y ruff limpio. Los dos pagos reales de $0.01 quedan pendientes de la autorización de Hugo y de CoDi (se activa el 15 nov). Si a las 10:00 del 15 nov no están hechos, se sigue el riesgo de §11 del plan: desplegar este cierre en verde y avisarlo en el formulario. F6 terminada en código (Grok, 2026-11-14): 97 passed y ruff limpio. El pago real tardío de $0.01 queda pendiente de la autorización de Hugo. Si el banco no deja pagar un QR vencido, se anota la pregunta abierta de la spec §8.5. F7 terminada en código (Grok, 2026-11-14): 96 passed y ruff limpio. El pago real de monto libre de $0.01 queda pendiente de la autorización de Hugo. F8 terminada en código (Grok, 2026-11-14). F6, F7 y F8 revisadas por Claude el 2026-11-14: 104 passed y ruff limpio. El pago real a un QR cancelado queda pendiente de la autorización de Hugo. FN terminada (Grok, 2026-11-15): 104 passed y ruff limpio. El README y el quickstart quedan al día con el corte 2. Los pagos reales de $0.01 siguen pendientes de la autorización de Hugo.
 - **Entrada**: los documentos de `specs/001-backend-mvp/`: plan.md, spec.md, research.md, data-model.md, contracts/ y quickstart.md
 
 > **Notas para los comandos de spec-kit.**
@@ -480,20 +480,20 @@
 
 ## Fase N (FN): Pulido y temas transversales · 21 nov
 
-- [ ] T051 [P] Actualizar `backend/README.md` con el corte 2: monto libre, cancelación, evento `cancelado` y `GRACIA_SEGUNDOS = 600`
+- [X] T051 [P] Actualizar `backend/README.md` con el corte 2: monto libre, cancelación, evento `cancelado` y `GRACIA_SEGUNDOS = 600`
   - **RF**: RF-003, RF-022, RF-023
   - **Dep.**: T042, T045, T050
   - **Hecho cuando**: cada ruta y evento de `contracts/` aparece en el README.
-- [ ] T052 [P] Repetir la revisión de seguridad para el corte 2 en la sección FN de `verification-guide.md`
+- [X] T052 [P] Repetir la revisión de seguridad para el corte 2 en la sección FN de `verification-guide.md`
   - La misma lista y el mismo `git grep` de T038, más la ruta de cancelar (solo `POST`, 404 y 409 sin datos de más).
   - **RF**: RF-011, RF-024, RF-034, RF-035, RF-036, RF-041; CE-009
   - **Dep.**: T042, T045, T050
   - **Hecho cuando**: cada punto tiene su resultado anotado.
-- [ ] T053 Validar `specs/001-backend-mvp/quickstart.md` de punta a punta y corregir lo que no coincida
+- [X] T053 Validar `specs/001-backend-mvp/quickstart.md` de punta a punta y corregir lo que no coincida
   - **RF**: — (todas las historias)
   - **Dep.**: T051, T052
   - **Hecho cuando**: los pasos 1 a 7 del quickstart dan lo esperado; las diferencias se corrigen en el quickstart o se anotan como TK.
-- [ ] T054 Cierre de FN: pruebas en verde, sección FN completa en `verification-guide.md` y commit sugerido
+- [X] T054 Cierre de FN: pruebas en verde, sección FN completa en `verification-guide.md` y commit sugerido
   - Commit sugerido: `docs(001): pulido del corte 2 y quickstart validado (FN)`.
 
 ---
