@@ -3,7 +3,7 @@
 - **Spec**: [spec.md](spec.md), estado: Aprobada el 2026-11-14, con el cambio C-1 aplicado el mismo día
 - **Plan**: [plan.md](plan.md), estado: Aprobado el 2026-11-14, ajustado por TK-1 y TK-2 (§14)
 - **Fecha**: 2026-11-14
-- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de `/speckit-analyze` y de la QA (QT-1 a QT-7, aplicadas, con el cambio C-1 a la spec). F1 terminada (Grok, 2026-11-14). F2 terminada (Grok, 2026-11-14). F3 terminada (Grok, 2026-11-14). F4 terminada (Grok, 2026-11-14). F5 terminada en código (Grok, 2026-11-14). F4 y F5 revisadas por Claude el 2026-11-14, con una corrección (400 para un `amount` que no es un número finito): 95 passed y ruff limpio. Los dos pagos reales de $0.01 quedan pendientes de la autorización de Hugo y de CoDi (se activa el 15 nov). Si a las 10:00 del 15 nov no están hechos, se sigue el riesgo de §11 del plan: desplegar este cierre en verde y avisarlo en el formulario. F6 terminada en código (Grok, 2026-11-14): 97 passed y ruff limpio. El pago real tardío de $0.01 queda pendiente de la autorización de Hugo. Si el banco no deja pagar un QR vencido, se anota la pregunta abierta de la spec §8.5. El siguiente paso es F7, cuando Hugo lo pida.
+- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de `/speckit-analyze` y de la QA (QT-1 a QT-7, aplicadas, con el cambio C-1 a la spec). F1 terminada (Grok, 2026-11-14). F2 terminada (Grok, 2026-11-14). F3 terminada (Grok, 2026-11-14). F4 terminada (Grok, 2026-11-14). F5 terminada en código (Grok, 2026-11-14). F4 y F5 revisadas por Claude el 2026-11-14, con una corrección (400 para un `amount` que no es un número finito): 95 passed y ruff limpio. Los dos pagos reales de $0.01 quedan pendientes de la autorización de Hugo y de CoDi (se activa el 15 nov). Si a las 10:00 del 15 nov no están hechos, se sigue el riesgo de §11 del plan: desplegar este cierre en verde y avisarlo en el formulario. F6 terminada en código (Grok, 2026-11-14): 97 passed y ruff limpio. El pago real tardío de $0.01 queda pendiente de la autorización de Hugo. Si el banco no deja pagar un QR vencido, se anota la pregunta abierta de la spec §8.5. F7 terminada en código (Grok, 2026-11-14): 96 passed y ruff limpio. El pago real de monto libre de $0.01 queda pendiente de la autorización de Hugo. El siguiente paso es F8, cuando Hugo lo pida.
 - **Entrada**: los documentos de `specs/001-backend-mvp/`: plan.md, spec.md, research.md, data-model.md, contracts/ y quickstart.md
 
 > **Notas para los comandos de spec-kit.**
@@ -424,18 +424,18 @@
 
 **Prueba independiente**: crear un cobro sin monto y escanearlo; el banco pide escribir la cantidad.
 
-- [ ] T043 [US1] Escribir la prueba de monto libre en `backend/tests/test_crear_cobro.py`
+- [X] T043 [US1] Escribir la prueba de monto libre en `backend/tests/test_crear_cobro.py`
   - `test_monto_vacio_o_cero_crea_un_cobro_de_monto_libre` (parametrizada: ausente, `null`, `0`): 201 con `monto: null` y `monto_libre: true`; la petición a pey lleva `amount: 0`; un pago de cualquier monto tiene `monto_distinto: false`.
   - Se quitan `0`, `null` y ausente de los casos de `test_montos_no_validos_se_rechazan_sin_llamar_a_pey`.
   - **RF**: RF-003, RF-019
   - **Dep.**: T039
   - **Hecho cuando**: la prueba falla con 422.
-- [ ] T044 [US1] Aceptar el monto libre en `backend/app/main.py` y `backend/app/cobros.py`
+- [X] T044 [US1] Aceptar el monto libre en `backend/app/main.py` y `backend/app/cobros.py`
   - `monto` vacío o 0 → cobro con `monto = None`; `amount: 0` en la petición a pey.
   - **RF**: RF-003
   - **Dep.**: T043
   - **Hecho cuando**: la prueba de T043 pasa y todo `pytest -q` sigue en verde.
-- [ ] T045 [US1] Cierre de F7: pruebas en verde, sección F7 en `verification-guide.md` con un pago real y commit sugerido
+- [X] T045 [US1] Cierre de F7: pruebas en verde, sección F7 en `verification-guide.md` con un pago real y commit sugerido
   - Pago real (QT-2), con autorización de Hugo en ese momento: crear un cobro libre, escanearlo y escribir $0.01 en el banco; esperado: `event: pago` con `monto_recibido: 0.01` y el cobro con `monto_libre: true`.
   - **RF**: RF-003
   - Commit sugerido: `feat(001): cobro de monto libre (F7)`.

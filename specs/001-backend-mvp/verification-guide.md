@@ -373,3 +373,60 @@ Commit sugerido:
 ```text
 feat(001): ventana de gracia de 10 minutos para pagos tardíos (F6)
 ```
+
+## F7 Historia 1: monto libre
+
+Fecha: 2026-11-14. Un cobro sin monto, con `null` o con `0` crea un QR en el que el cliente escribe la cantidad. Pey recibe `amount: 0`. El cobro guarda `monto: null` y `monto_libre: true`. Un pago de cualquier cantidad no queda como monto distinto.
+
+`0`, `null` y el monto ausente salieron de `test_montos_no_validos_se_rechazan_sin_llamar_a_pey`. Negativo, más de dos decimales, texto y más de $100 siguen en 422.
+
+### Qué comprueba la prueba
+
+```bash
+uv run --directory backend pytest -q \
+  tests/test_crear_cobro.py::test_monto_vacio_o_cero_crea_un_cobro_de_monto_libre
+```
+
+Tres casos: cuerpo sin `monto`, `"monto": null` y `"monto": 0`. En los tres la respuesta es 201, la petición a pey lleva `amount: 0` y un aviso de $7.50 queda con `monto_distinto: false`.
+
+### Pago real (lo haces tú)
+
+Pendiente. Hace falta tu autorización en el momento. Es $0.01, con cuenta propia o la CLABE de prueba de pey.
+
+1. Arranca el backend: `cd backend && uv run uvicorn app.main:app --port 8000`.
+2. Crea el cobro libre (no mueve dinero hasta que alguien lo pague):
+
+```bash
+curl -s -X POST http://localhost:8000/api/cobros \
+  -H 'Content-Type: application/json' \
+  -d '{"concepto": "Prueba"}'
+```
+
+**Esperado**: 201 con `monto: null` y `monto_libre: true`.
+
+3. Abre el canal: `curl -N http://localhost:8000/api/cobros/<id>/eventos`.
+4. Escanea el QR en la app del banco, en la opción CoDi, y escribe $0.01.
+5. **Esperado**: `event: pago` con `monto_recibido: 0.01` y el cobro con `monto_libre: true`.
+
+Anota el resultado: ____
+
+### Cierre
+
+```bash
+uv run --directory backend pytest -q
+uv run --directory backend ruff check .
+uv run --directory backend ruff format --check .
+```
+
+En el cierre de F7: `96 passed`, y ruff limpio.
+
+Revisión de Claude (2026-11-14):
+- Casos borde probados aparte: `0.00`, `-0`, `"0"` y un cuerpo vacío también crean un cobro de monto libre. `-0.01` y `0.001` siguen en 422.
+- Un pago de $150 a un QR libre se registra sin «monto distinto». El tope de `MONTO_MAXIMO` solo limita lo que el negocio pide, no lo que el cliente escribe en su banco.
+- `backend/README.md` no mencionaba el monto libre. Ahora lo explica en la fila de `POST /api/cobros` y en las reglas.
+
+Commit sugerido:
+
+```text
+feat(001): cobro de monto libre (F7)
+```

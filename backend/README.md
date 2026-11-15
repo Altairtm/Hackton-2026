@@ -2,7 +2,7 @@
 
 API en **Python (FastAPI)**. Es la única parte que habla con pey y la única que conoce la llave.
 
-La fuente del contrato con la web es [`specs/001-backend-mvp/contracts/`](../specs/001-backend-mvp/contracts/). Este archivo resume el corte M0 y la ventana de gracia del corte 2 (F6). Si algo no coincide, manda el contrato.
+La fuente del contrato con la web es [`specs/001-backend-mvp/contracts/`](../specs/001-backend-mvp/contracts/). Este archivo resume el corte M0, la ventana de gracia (F6) y el monto libre (F7) del corte 2. Si algo no coincide, manda el contrato.
 
 ## Arranque
 
@@ -54,7 +54,7 @@ Escanea la imagen con la app del banco, en la opción CoDi. Con `--esperar`, el 
 
 | Método y ruta | Qué hace |
 |---|---|
-| `POST /api/cobros` | Cuerpo `{"monto": 0.01, "concepto": "Tacos"}`. Crea el cobro en pey y responde `201` con el objeto cobro. |
+| `POST /api/cobros` | Cuerpo `{"monto": 0.01, "concepto": "Tacos"}`. Crea el cobro en pey y responde `201` con el objeto cobro. Sin `monto`, con `null` o con `0`, el cobro es de **monto libre**: `"monto": null`, `"monto_libre": true`, y el cliente escribe la cantidad en su banco. |
 | `GET /api/cobros/{id}` | El mismo objeto. Si sigue en ventana, pregunta a pey como respaldo del aviso. |
 | `GET /api/cobros/{id}/eventos` | Server-Sent Events. Ver eventos abajo. |
 | `POST /webhooks/pey` | Solo para pey. Verifica la firma antes de leer el JSON. |
@@ -106,7 +106,7 @@ Con la gracia de 600 s, `vencido` no cierra el canal: sigue abierto hasta `fin_v
 - La llave y el secreto solo se leen de las variables de entorno. No aparecen en el código, en respuestas ni en registros.
 - Un aviso sin firma válida se rechaza con `401` y no cambia ningún cobro.
 - El mismo pago no se registra dos veces (por `transactionId`).
-- Monto mayor a 0, con máximo 2 decimales y tope de `MONTO_MAXIMO`.
+- Monto fijo mayor a 0, con máximo 2 decimales y tope de `MONTO_MAXIMO`; vacío o 0 es monto libre. En un cobro de monto libre no aplica «monto distinto».
 - CORS limitado a `WEB_ORIGIN`, con métodos `GET` y `POST`.
 - Como máximo 10 cobros por minuto y 10 canales abiertos por IP del cliente.
 

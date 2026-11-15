@@ -140,7 +140,10 @@ class RepositorioCobros:
         return self._transacciones
 
     def nuevo(self, monto: Decimal | None, concepto: str, expiracion: int, ahora: float) -> Cobro:
-        """Crea un cobro con la hora del reloj (spec 001, RF-006, RF-008, RF-022)."""
+        """Crea un cobro con la hora del reloj (spec 001, RF-003, RF-006, RF-008, RF-022).
+
+        `monto` None es un cobro de monto libre: no hay cantidad pedida.
+        """
         creado_en = int(ahora)
         cobro = Cobro(
             id=secrets.token_urlsafe(9),

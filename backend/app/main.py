@@ -32,13 +32,16 @@ MENSAJE_CONCEPTO_LARGO = "El concepto puede tener máximo 40 letras"
 MENSAJE_CONCEPTO_RARO = "El concepto tiene caracteres no válidos"
 
 
-def validar_monto(valor: object, maximo: Decimal) -> Decimal:
-    """Monto fijo mayor a 0, con máximo 2 decimales (spec 001, RF-002, RF-004).
+def validar_monto(valor: object, maximo: Decimal) -> Decimal | None:
+    """Monto fijo, o None si el cobro es de monto libre (spec 001, RF-002, RF-003, RF-004).
 
-    En el corte M0, 0, null y ausente se rechazan con el mismo mensaje.
+    None, ausente y 0 dejan que el cliente escriba la cantidad. Negativo, texto
+    y más de 2 decimales se rechazan.
     """
-    if isinstance(valor, bool) or valor is None:
+    if isinstance(valor, bool):
         raise HTTPException(422, MENSAJE_MONTO)
+    if valor is None:
+        return None
     if isinstance(valor, str):
         try:
             monto = Decimal(valor)
@@ -55,9 +58,11 @@ def validar_monto(valor: object, maximo: Decimal) -> Decimal:
     exponente = monto.as_tuple().exponent
     if isinstance(exponente, str) or exponente < -2 or not monto.is_finite():
         raise HTTPException(422, MENSAJE_MONTO)
+    if monto == 0:
+        return None
     if monto > maximo:
         raise HTTPException(422, f"El monto máximo de la demo es ${maximo}")
-    if monto <= 0:
+    if monto < 0:
         raise HTTPException(422, MENSAJE_MONTO)
     return monto
 
@@ -76,7 +81,7 @@ def validar_concepto(valor: object) -> str:
     return limpio
 
 
-async def leer_solicitud(request: Request, monto_maximo: Decimal) -> tuple[Decimal, str]:
+async def leer_solicitud(request: Request, monto_maximo: Decimal) -> tuple[Decimal | None, str]:
     """Lee el JSON y valida monto y concepto antes del límite por IP (spec 001, RF-004, RF-034)."""
     try:
         bruto = await request.body()
@@ -167,7 +172,7 @@ def crear_app(
 
     @app.post("/api/cobros", status_code=201)
     async def crear_cobro(request: Request) -> dict:
-        """Crea un cobro de monto fijo y su QR en pey (spec 001, RF-001, RF-006, RF-009, RF-010)."""
+        """Crea un cobro y su QR en pey (spec 001, RF-001, RF-003, RF-006, RF-009, RF-010)."""
         monto, concepto = await leer_solicitud(request, config.monto_maximo)
         ip = request.client.host if request.client else "desconocida"
         if not limite.permitir(ip):
@@ -180,8 +185,9 @@ def crear_app(
             ahora=app.state.reloj.ahora(),
         )
         try:
+            # pey usa amount 0 cuando el cliente escribe la cantidad (RF-003).
             qr = await app.state.pey.crear_qr(
-                monto=cobro.monto,
+                monto=cobro.monto if cobro.monto is not None else Decimal(0),
                 concepto=cobro.concepto,
                 expiracion=config.expiracion_segundos,
                 num_ref=cobro.num_ref,

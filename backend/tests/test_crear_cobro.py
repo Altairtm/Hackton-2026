@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from app.main import crear_app
 from app.pey import ClientePey
-from tests.conftest import BASE_PEY_DE_PRUEBA, CODI_QR_ID, LLAVE_FALSA
+from tests.conftest import BASE_PEY_DE_PRUEBA, CODI_QR_ID, LLAVE_FALSA, enviar_aviso, pago
 
 MENSAJE_MONTO = "Escribe un monto mayor a $0 con máximo 2 decimales"
 MENSAJE_MAXIMO = "El monto máximo de la demo es $100"
@@ -58,7 +58,7 @@ def test_crear_cobro_llama_a_pey_y_devuelve_el_qr(cliente, pey) -> None:
     assert cuerpo["metadata"] == {"cobroId": cobro["id"]}
 
 
-@pytest.mark.parametrize("monto", [0, -5, 100.01, 1.234, "abc"])
+@pytest.mark.parametrize("monto", [-5, 100.01, 1.234, "abc"])
 def test_montos_invalidos_se_rechazan_sin_llamar_a_pey(cliente, pey, monto) -> None:
     respuesta = cliente.post("/api/cobros", json={"monto": monto, "concepto": "x"})
     assert respuesta.status_code == 422
@@ -118,17 +118,41 @@ def test_el_cobro_devuelve_todos_sus_campos(cliente) -> None:
         ({"monto": 0.001, "concepto": "x"}, MENSAJE_MONTO),
         ({"monto": "abc", "concepto": "x"}, MENSAJE_MONTO),
         ({"monto": 100.01, "concepto": "x"}, MENSAJE_MAXIMO),
-        ({"monto": 0, "concepto": "x"}, MENSAJE_MONTO),
-        ({"monto": None, "concepto": "x"}, MENSAJE_MONTO),
-        ({"concepto": "x"}, MENSAJE_MONTO),
     ],
 )
 def test_montos_no_validos_se_rechazan_sin_llamar_a_pey(cliente, pey, cuerpo, mensaje) -> None:
-    """En el corte M0 también se rechazan 0, null y el monto ausente (RF-002, RF-004)."""
+    """Negativo, decimales de más, texto y el tope siguen en 422 (RF-002, RF-004)."""
     respuesta = cliente.post("/api/cobros", json=cuerpo)
     assert respuesta.status_code == 422
     assert respuesta.json()["detail"] == mensaje
     assert pey.solicitudes == []
+
+
+@pytest.mark.parametrize(
+    "cuerpo",
+    [
+        {"concepto": "Tacos"},
+        {"monto": None, "concepto": "Tacos"},
+        {"monto": 0, "concepto": "Tacos"},
+    ],
+    ids=["ausente", "null", "cero"],
+)
+def test_monto_vacio_o_cero_crea_un_cobro_de_monto_libre(cliente, pey, cuerpo) -> None:
+    """Sin monto, null o 0 el QR es de monto libre y el pago no es distinto (RF-003, RF-019)."""
+    respuesta = cliente.post("/api/cobros", json=cuerpo)
+    assert respuesta.status_code == 201
+    cobro = respuesta.json()
+    assert cobro["monto"] is None
+    assert cobro["monto_libre"] is True
+    enviada = json.loads(pey.solicitudes[-1].content)
+    assert enviada["amount"] == 0
+    aviso = enviar_aviso(cliente, pago("tx-libre") | {"amount": 7.5}, webhook_id="msg_libre")
+    assert aviso.status_code == 200
+    assert aviso.json()["procesado"] is True
+    estado = cliente.get(f"/api/cobros/{cobro['id']}").json()
+    assert estado["monto_libre"] is True
+    assert estado["pagos"][0]["monto_recibido"] == 7.5
+    assert estado["pagos"][0]["monto_distinto"] is False
 
 
 def test_el_concepto_se_limpia_y_usa_cobro_por_defecto(cliente, pey) -> None:
