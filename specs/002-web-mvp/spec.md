@@ -2,7 +2,7 @@
 
 - **ID**: `002-web-mvp`
 - **Fecha**: `2026-11-15`
-- **Estado**: `Aprobada`. Hugo la aprobó el 2026-11-15, después de la entrevista (E-1 a E-10) y de la QA (QA-1 a QA-10 y sus 6 erratas, todas aplicadas). Se entrega en dos cortes (§1.2). Depende del cambio C-2 a la spec 001, aprobado y sin aplicar (§8.2), que debe aplicarse antes del corte 1.
+- **Estado**: `Aprobada`. Hugo la aprobó el 2026-11-15, después de la entrevista (E-1 a E-10) y de la QA (QA-1 a QA-10 y sus 6 erratas, todas aplicadas). Se entrega en dos cortes (§1.2). Depende del cambio C-2 a la spec 001, aprobado y sin aplicar (§8.2), que debe aplicarse antes del corte 1. El cambio C-3 (imagen del QR vacía) salió del plan y se aprobó y aplicó el 2026-11-15.
 - **Rama**: `feature/64-web-mvp` (propuesta; la crea Hugo)
 - **Issues**: #64 (página de cobro del MVP). Es la versión mínima de #31 (pantalla de cobro) y #32 (aviso de pago con sonido).
 - **Entrada**: "Iniciemos la redaccion de la spec 002. En este caso ademas de lo que tienes tienes del proyecto, vamos a intridcir el backend que permita introducir la funcinalidad en la pantalla de mostrar un teclado numerico que permita introducir el onto de cobro y asi generar el QR."
@@ -81,6 +81,7 @@ La spec se aprueba completa, pero se construye en dos cortes. Cada historia, esc
 5. *(C1)* **Dado** un monto válido, **cuando** el dueño pulsa Cobrar, **entonces** la pantalla muestra al instante que está generando el QR, y un segundo toque a Cobrar no crea otro cobro.
 6. *(C1)* **Dado** que el servidor rechaza el cobro (por ejemplo, "El monto máximo de la demo es $100"), **cuando** responde, **entonces** la pantalla muestra ese mensaje y conserva el monto y el concepto escritos para corregirlos.
 7. *(C1)* **Dado** que el celular no tiene internet, **cuando** el dueño pulsa Cobrar, **entonces** ve un mensaje que le pide revisar su conexión, y el monto sigue escrito.
+12. *(C1)* **Dado** que el servidor crea el cobro pero lo devuelve sin imagen del QR, **cuando** responde, **entonces** vuelve la vista Teclado con "No se pudo mostrar el QR. Intenta de nuevo." y el monto y el concepto siguen escritos (C-3).
 8. *(C2)* **Dado** la vista Teclado con el monto vacío y el concepto "Propina", **cuando** el dueño pulsa Monto libre, **entonces** se genera un QR que muestra "Monto libre" y "Propina", y al escanearlo el banco del cliente le pide escribir la cantidad.
 9. *(C2)* **Dado** el monto "$25.50" escrito, **cuando** el dueño mira la vista Teclado, **entonces** la tecla Monto libre está desactivada.
 10. *(C1)* **Dado** la vista Teclado vacía, **cuando** el dueño pulsa 0 y después 7, **entonces** el monto queda en "$7"; y si la primera tecla es el punto, queda en "$0.".
@@ -240,11 +241,12 @@ Cada RF lleva su corte: **[C1]** o **[C2]** (§1.2).
 - **RF-011** (Estado) [C1; Monto libre en C2]: MIENTRAS el servidor crea el cobro, EL SISTEMA ignorará cualquier otro toque de Cobrar o de Monto libre.
 - **RF-012** (No deseado) [C1]: SI el servidor rechaza el cobro, ENTONCES EL SISTEMA mostrará en la vista Teclado el mensaje que devuelve el servidor.
 - **RF-013** (No deseado) [C1]: SI el servidor no responde o el celular no tiene conexión, ENTONCES EL SISTEMA mostrará en la vista Teclado un mensaje para el dueño que le pide revisar su conexión e intentar de nuevo.
-- **RF-014** (No deseado) [C1]: SI el cobro no se crea, ENTONCES EL SISTEMA conservará el monto y el concepto escritos para que el dueño los corrija o lo intente de nuevo.
+- **RF-014** (No deseado) [C1]: SI el cobro no se crea o llega sin imagen del QR, ENTONCES EL SISTEMA conservará el monto y el concepto escritos para que el dueño los corrija o lo intente de nuevo.
 
 **Mostrar el QR**
 
-- **RF-015** (Dirigido por evento) [C1]: CUANDO el servidor devuelve el cobro creado, EL SISTEMA mostrará la vista QR con el QR del cobro.
+- **RF-015** (Dirigido por evento) [C1]: CUANDO el servidor devuelve el cobro creado con la imagen de su QR, EL SISTEMA mostrará la vista QR con esa imagen.
+- **RF-078** (No deseado) [C1]: SI el servidor devuelve el cobro creado sin imagen del QR, ENTONCES EL SISTEMA mostrará en la vista Teclado "No se pudo mostrar el QR. Intenta de nuevo." y no escuchará ese cobro (C-3).
 - **RF-016** (Ubicuo) [C1; "Monto libre" en C2]: EL SISTEMA mostrará en la vista QR el monto pedido (o "Monto libre") y el concepto.
 - **RF-017** (Ubicuo) [C1]: EL SISTEMA mostrará en la vista QR la indicación "Escanéalo desde la app de tu banco, en la opción CoDi" (principio VII).
 - **RF-018** (Estado) [C1]: MIENTRAS el cobro en pantalla está dentro de su vigencia, EL SISTEMA mostrará una cuenta regresiva en minutos y segundos del tiempo que le queda.
@@ -331,7 +333,7 @@ Cada RF lleva su corte: **[C1]** o **[C2]** (§1.2).
 - **RF-064** (Ubicuo) [C1]: EL SISTEMA tomará la dirección del servidor de un único valor de configuración.
 - **RF-077** (Ubicuo) [C1]: EL SISTEMA mostrará el concepto, los mensajes del servidor y los datos guardados en el celular solo como texto, sin interpretarlos como contenido de la página (QA-8).
 
-> Los RF se renumeraron al aplicar la entrevista. Los RF-065 a RF-077 salieron de la QA (QA-5 a QA-10) y se colocaron en su grupo para leerlos junto a los requisitos con los que se relacionan.
+> Los RF se renumeraron al aplicar la entrevista. Los RF-065 a RF-077 salieron de la QA (QA-5 a QA-10), y el RF-078 del cambio C-3. Se colocaron en su grupo para leerlos junto a los requisitos con los que se relacionan.
 
 ### 3.2 Entidades clave
 
@@ -357,6 +359,7 @@ La pantalla no crea datos de negocio: muestra los del servidor.
 | Concepto con forma de código (por ejemplo, `<script>`) | Se muestra tal cual, como texto; no se ejecuta. | RF-077 |
 | Demasiados cobros seguidos desde el mismo celular | El servidor responde "Demasiados cobros seguidos. Espera un minuto."; la pantalla lo muestra y conserva lo escrito. | RF-012, RF-014 |
 | **Falla de pey** al crear el cobro (mantenimiento, llave rechazada, error general) | La pantalla muestra el mensaje del servidor y conserva lo escrito para reintentar. | RF-012, RF-014 |
+| El cobro llega sin imagen del QR (pey no la entregó) | Vista Teclado con "No se pudo mostrar el QR. Intenta de nuevo."; se conserva lo escrito. Nadie vio ese QR, así que no se escucha (C-3). | RF-078, RF-014 |
 | Generar el QR tarda varios segundos (el primero después de arrancar el servidor midió 7 a 9 s, TK-5 de la spec 001) | La vista Generando QR se mantiene hasta que el servidor responda o falle. | RF-010, RF-013 |
 | Sin internet o servidor caído | Mensaje que pide revisar la conexión; se conserva lo escrito. | RF-013, RF-014 |
 | Reloj del celular desfasado | La cuenta regresiva sigue la hora del servidor (C-2); error máximo de 2 s. | RF-019 |
@@ -488,6 +491,7 @@ La pantalla no crea datos de negocio: muestra los del servidor.
 | # | Spec | Cambio propuesto | Origen | Estado |
 |---|---|---|---|---|
 | C-2 | 001 | RF-008 agrega "la hora actual del servidor" a cada cobro que se devuelve (crear, ver y cancelar) y a los eventos del canal, para que la cuenta regresiva no dependa del reloj del celular (RF-019). Afecta a RF-008, a `contracts/crear-cobro.md` (objeto cobro) y a `contracts/canal-avisos.md`. Se aplica antes del corte 1 de esta spec. | QA-2 | Aprobado · sin aplicar (Hugo, 2026-11-15) |
+| C-3 | 002 (esta) | Nuevo RF (No deseado) [C1]: SI el cobro creado llega sin imagen del QR, ENTONCES EL SISTEMA mostrará en la vista Teclado "No se pudo mostrar el QR. Intenta de nuevo." y conservará el monto y el concepto. Más su fila en §4, y RF-015 lo excluye. | DP-2 y DP-3 del plan (la pantalla usa la imagen de pey, que puede llegar vacía) | Aprobado y aplicado por Hugo el 2026-11-15 (RF-078, RF-014, RF-015, §4, historia 1 escenario 12) |
 
 ### 8.3 Propuestas
 

@@ -31,6 +31,8 @@
 
 ## Notas
 
+- 2026-11-15, cambio C-3 (sale del plan, DP-2 y DP-3): aprobado y aplicado. Nuevo RF-078; RF-014 y RF-015 ajustados; fila en §4 y escenario 12 de la historia 1. El checklist sigue en orden.
+
 - 2026-11-15, después de aplicar la QA (QA-1 a QA-10) y sus 6 erratas: 77 RF (RF-065 a RF-077 nuevos) y 16 CE. Se revisó otra vez el checklist y todo sigue en orden. Queda el C-2 a la spec 001, aprobado y sin aplicar, como dependencia del corte 1. Hugo la **aprobó** el mismo día.
 - 2026-11-15, después de la entrevista (E-1 a E-10): la spec quedó en dos cortes, con 64 RF y 14 CE renumerados y marcados [C1] o [C2]. Se revisó otra vez el checklist y todo está en orden; la spec pasa a **En QA**.
 
