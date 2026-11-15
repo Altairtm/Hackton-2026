@@ -74,7 +74,7 @@ class PeySimulado:
 
     def _pagina(self, solicitud: httpx.Request) -> dict:
         if not self.paginas:
-            return {"items": self.transacciones, "nextToken": None}
+            return {"items": self.transacciones, "nextToken": None, "requestId": self.request_id}
         token = solicitud.url.params.get("nextToken")
         if token is None:
             return self.paginas[0]

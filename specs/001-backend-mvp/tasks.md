@@ -3,7 +3,7 @@
 - **Spec**: [spec.md](spec.md), estado: Aprobada el 2026-11-14, con el cambio C-1 aplicado el mismo día
 - **Plan**: [plan.md](plan.md), estado: Aprobado el 2026-11-14, ajustado por TK-1 y TK-2 (§14)
 - **Fecha**: 2026-11-14
-- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de `/speckit-analyze` y de la QA (QT-1 a QT-7, aplicadas, con el cambio C-1 a la spec). F1 terminada (Grok, 2026-11-14). F2 terminada (Grok, 2026-11-14). F3 terminada (Grok, 2026-11-14). El siguiente paso es F4, cuando Hugo lo pida.
+- **Estado**: `Aprobado`. Hugo lo aprobó el 2026-11-14, después de `/speckit-analyze` y de la QA (QT-1 a QT-7, aplicadas, con el cambio C-1 a la spec). F1 terminada (Grok, 2026-11-14). F2 terminada (Grok, 2026-11-14). F3 terminada (Grok, 2026-11-14). F4 terminada (Grok, 2026-11-14). F5 terminada en código (Grok, 2026-11-14). F4 y F5 revisadas por Claude el 2026-11-14, con una corrección (400 para un `amount` que no es un número finito): 95 passed y ruff limpio. Los dos pagos reales de $0.01 quedan pendientes de la autorización de Hugo y de CoDi (se activa el 15 nov). Si a las 10:00 del 15 nov no están hechos, se sigue el riesgo de §11 del plan: desplegar este cierre en verde y avisarlo en el formulario. El siguiente paso es F6, cuando Hugo lo pida.
 - **Entrada**: los documentos de `specs/001-backend-mvp/`: plan.md, spec.md, research.md, data-model.md, contracts/ y quickstart.md
 
 > **Notas para los comandos de spec-kit.**
@@ -239,7 +239,7 @@
 
 ### Pruebas de las historias 2 y 3 (primero, deben fallar antes de implementar)
 
-- [ ] T022 [P] [US2] Escribir las pruebas del aviso de pey en `backend/tests/test_aviso_pey.py` según [aviso-pey](contracts/aviso-pey.md)
+- [X] T022 [P] [US2] Escribir las pruebas del aviso de pey en `backend/tests/test_aviso_pey.py` según [aviso-pey](contracts/aviso-pey.md)
   - `test_un_aviso_sin_firma_valida_se_rechaza_sin_cambiar_nada` (parametrizada): sin cabeceras, firmado con otro secreto y firmado con una hora de hace 6 minutos → 401 "Firma no válida"; el cobro sigue *pendiente* y el `webhook-id` no queda marcado.
   - `test_un_aviso_valido_registra_el_pago_y_pasa_el_cobro_a_pagado`: 200 `{"recibido": true, "procesado": true}`; el cobro queda *pagado* con un pago `numero: 1`, `monto_recibido` = `amount`, `pagado_en` = `datePaid`.
   - `test_un_aviso_de_otro_tipo_se_ignora`: 200 `procesado: false`, sin cambios.
@@ -253,7 +253,7 @@
   - **RF**: RF-011, RF-012, RF-013, RF-014, RF-015, RF-016, RF-017, RF-018, RF-032, RF-037, RF-039; CE-004, CE-005, CE-006, CE-010
   - **Dep.**: T021
   - **Hecho cuando**: las pruebas existen y fallan por la razón esperada (formato de respuesta, 400, R-8 o QR reutilizado).
-- [ ] T023 [P] [US3] Escribir las pruebas de la consulta de respaldo y de ver un cobro en `backend/tests/test_respaldo.py` según [ver-cobro](contracts/ver-cobro.md)
+- [X] T023 [P] [US3] Escribir las pruebas de la consulta de respaldo y de ver un cobro en `backend/tests/test_respaldo.py` según [ver-cobro](contracts/ver-cobro.md)
   - Unitarias de `ConsultaDeRespaldo(cliente_pey, repositorio, difusor, reloj)`: respeta el intervalo mínimo por cobro (3 s y 5 s, compartido entre llamadas); registra con `registrar_pago` y publica el evento `pago` con `{"pago": ..., "cobro": ...}`; fuera de la ventana de escucha no consulta; si pey lanza `ErrorPey` o se agota el tiempo, no lanza nada y deja un `WARNING`.
   - `test_cada_consulta_a_pey_deja_una_linea_en_el_registro` (QT-4): cada consulta, aunque no traiga pagos nuevos, deja una línea `INFO` con el id del cobro, las páginas pedidas, los pagos nuevos y el `requestId` si pey lo mandó.
   - `test_ver_el_cobro_consulta_a_pey_como_maximo_cada_3_segundos`: tres `GET /api/cobros/{id}` seguidos hacen una sola consulta; tras `reloj.avanzar(3)`, otra.
@@ -263,7 +263,7 @@
   - **RF**: RF-014, RF-025, RF-026, RF-027, RF-029, RF-039; CE-005
   - **Dep.**: T021
   - **Hecho cuando**: las pruebas existen y fallan porque `app.respaldo` no existe o la ruta no se comporta así.
-- [ ] T024 [P] [US2] Escribir las pruebas del canal de avisos en `backend/tests/test_canal.py` según [canal-avisos](contracts/canal-avisos.md)
+- [X] T024 [P] [US2] Escribir las pruebas del canal de avisos en `backend/tests/test_canal.py` según [canal-avisos](contracts/canal-avisos.md)
   - Pruebas `@pytest.mark.asyncio` sobre `flujo_de_avisos` con `RelojFalso` y pey simulado (DP-2):
     - `test_el_canal_emite_el_estado_al_abrirse`: primero `retry: 3000` y luego `event: estado` con el objeto cobro; con un cobro que ya tiene pagos, `numero_de_pagos` y `total_recibido` correctos.
     - `test_el_canal_avisa_el_pago_en_cuanto_se_registra`: al publicar un pago en el `Difusor`, el siguiente evento es `pago` con `{"pago": {"numero": 1, ...}, "cobro": {...}}`, sin avanzar el reloj (CE-003).
@@ -277,7 +277,7 @@
   - **RF**: RF-015, RF-016, RF-028, RF-029, RF-030, RF-031, RF-032, RF-033, RF-043; CE-003, CE-006
   - **Dep.**: T021
   - **Hecho cuando**: las pruebas existen y fallan porque `app.canal` no existe.
-- [ ] T025 [US3] Escribir las pruebas de la consulta automática del canal en `backend/tests/test_canal.py`
+- [X] T025 [US3] Escribir las pruebas de la consulta automática del canal en `backend/tests/test_canal.py`
   - `test_con_el_canal_abierto_el_servidor_pregunta_a_pey_cada_5_segundos`: sin aviso de pey, el pey simulado empieza a reportar un `PAID` en `t`; el canal emite `pago` con el reloj en `t + 5` o antes, sin ninguna consulta de la pantalla (CE-008). Dos canales del mismo cobro comparten el límite: una consulta cada 5 s, no dos.
   - `test_sin_secreto_el_canal_avisa_el_pago_por_la_consulta` (QT-5): con `PEY_WEBHOOK_SECRET` vacío, el canal abierto emite `pago` gracias a la consulta automática.
   - `test_una_consulta_lenta_no_deja_mudo_el_canal`: con la consulta agotando su tiempo de 4 s, la señal de vida y `vencido` siguen saliendo dentro de sus plazos (QP-1).
@@ -287,37 +287,37 @@
 
 ### Implementación de las historias 2 y 3
 
-- [ ] T026 [US3] Implementar `ConsultaDeRespaldo` en `backend/app/respaldo.py` (archivo nuevo)
+- [X] T026 [US3] Implementar `ConsultaDeRespaldo` en `backend/app/respaldo.py` (archivo nuevo)
   - `ConsultaDeRespaldo(cliente_pey, repositorio, difusor, reloj)`.
   - `async consultar(cobro, intervalo_minimo: float) -> None`: si `cobro.en_ventana(ahora)` y pasaron `intervalo_minimo` segundos desde `ultima_consulta_pey`, actualiza esa hora, llama a `pagos_del_qr(codi_qr_id, vistas)` y pasa cada `PagoPey` nuevo por `registrar_y_avisar`; deja una línea `INFO` por consulta con el id del cobro, las páginas pedidas, los pagos nuevos y el `requestId` si pey lo mandó (QT-4); ante `ErrorPey`, deja un `WARNING` con el id del cobro y el `requestId`, sin lanzar (RF-027).
   - `registrar_y_avisar(cobro, transaccion_id, monto_recibido, monto_base, pagado_en, fuente) -> Pago | None`: llama a `registrar_pago`; si hay pago nuevo, deja un `INFO` y publica `pago` con `{"pago": pago.publico(), "cobro": cobro.publico()}`.
   - **RF**: RF-014, RF-025, RF-026, RF-027, RF-029, RF-039, RF-040 (QP-7, DP-14)
   - **Dep.**: T016, T023
   - **Hecho cuando**: las pruebas unitarias de `ConsultaDeRespaldo` y la de registro de T023 pasan.
-- [ ] T027 [US2] Implementar `POST /webhooks/pey` según el contrato en `backend/app/main.py`
+- [X] T027 [US2] Implementar `POST /webhooks/pey` según el contrato en `backend/app/main.py`
   - Orden: sin secreto → 503; `standardwebhooks.Webhook(secreto).verify(cuerpo_exacto, cabeceras)` antes de leer el JSON → 401; `webhook-id` ya visto → 200 `procesado: false`; tipo distinto de `codi.qr.payment_received` → 200 `procesado: false`; cuerpo ilegible o `amount` no numérico → 400 sin marcar el `webhook-id`; `codiQrId` desconocido → 200 `procesado: false` con registro; si no, `registrar_y_avisar(..., fuente="aviso")`, también fuera de la ventana de escucha y también si el cobro ya tenía pagos (pago siguiente, C-1).
   - El `webhook-id` se marca como visto **después** de procesar (DP-10). Sin llamadas de red.
   - **RF**: RF-011, RF-012, RF-013, RF-014, RF-015, RF-016, RF-017, RF-018, RF-037, RF-039; CE-010
   - **Dep.**: T022, T026
   - **Hecho cuando**: las pruebas de T022 pasan.
-- [ ] T028 [US3] Usar `ConsultaDeRespaldo` en `GET /api/cobros/{id}` en `backend/app/main.py`
+- [X] T028 [US3] Usar `ConsultaDeRespaldo` en `GET /api/cobros/{id}` en `backend/app/main.py`
   - Antes de responder, `await consulta.consultar(cobro, intervalo_minimo=3)`; 404 "Ese cobro no existe"; nunca 5xx por la consulta. Se quita la consulta que el prototipo tenía dentro de `crear_app`.
   - **RF**: RF-025, RF-026, RF-027
   - **Dep.**: T023, T026, T027 (mismo archivo)
   - **Hecho cuando**: todas las pruebas de T023 pasan.
-- [ ] T029 [US2] Implementar `flujo_de_avisos` en `backend/app/canal.py` (archivo nuevo)
+- [X] T029 [US2] Implementar `flujo_de_avisos` en `backend/app/canal.py` (archivo nuevo)
   - Generador asíncrono que sigue el [ciclo del servidor](contracts/canal-avisos.md#ciclo-del-servidor): `retry: 3000`; `estado`; si `ahora ≥ fin_ventana`, `fin` y termina (RF-043); si no, en cada vuelta espera eventos del `Difusor` con un tiempo límite igual al menor de 5 s, lo que falta para `expira_en` y lo que falta para `fin_ventana`; reenvía cada `pago`; emite `vencido` una vez al pasar a ese estado; si pasaron 5 s, `consulta.consultar(cobro, intervalo_minimo=5)`; tras 15 s sin enviar nada, `: sigo conectado`; al terminar la ventana, `fin`.
   - Si el cobro vence en el mismo instante en que termina la ventana (gracia 0), emite primero `vencido` y después `fin` (QT-6).
   - Recibe el cobro, el difusor, la consulta y el reloj ya creados; cancela su suscripción al `Difusor` al terminar o desconectarse (`finally`).
   - **RF**: RF-028, RF-029, RF-030, RF-031, RF-032, RF-033, RF-040, RF-043 (DP-5, DP-6)
   - **Dep.**: T024, T025, T026
   - **Hecho cuando**: las pruebas asíncronas de T024 y T025 pasan.
-- [ ] T030 [US2] Servir el canal en `GET /api/cobros/{id}/eventos` en `backend/app/main.py`
+- [X] T030 [US2] Servir el canal en `GET /api/cobros/{id}/eventos` en `backend/app/main.py`
   - `StreamingResponse(flujo_de_avisos(...), media_type="text/event-stream")` con `Cache-Control: no-cache` y `X-Accel-Buffering: no`; 404 "Ese cobro no existe"; se detiene al desconectarse la pantalla.
   - **RF**: RF-028, RF-032, RF-043
   - **Dep.**: T028, T029
   - **Hecho cuando**: todas las pruebas de T022 a T025 pasan y todo `pytest -q` sigue en verde.
-- [ ] T031 [US2] Cierre de F4: pruebas en verde, sección F4 en `verification-guide.md` y commit sugerido
+- [X] T031 [US2] Cierre de F4: pruebas en verde, sección F4 en `verification-guide.md` y commit sugerido
   - La guía incluye: abrir el canal con `curl -N` sobre un cobro de prueba y ver `estado`, la señal de vida, `vencido` y `fin`; dónde se lee en las pruebas que un aviso sin firma no cambia nada (para la revisión de Altairtm).
   - Commit sugerido: `feat(001): aviso de pey firmado, QR reutilizado, consulta de respaldo y canal de avisos (F4)`.
 
@@ -333,7 +333,7 @@
 
 ### Pruebas de las historias 5 y 6 (primero, deben fallar antes de implementar)
 
-- [ ] T032 [P] [US5] Escribir las pruebas de protección en `backend/tests/test_proteccion.py`
+- [X] T032 [P] [US5] Escribir las pruebas de protección en `backend/tests/test_proteccion.py`
   - `test_limite_de_cobros_por_ip`: 10 cobros válidos pasan; el 11.º → 429 "Demasiados cobros seguidos. Espera un minuto." sin llamar a pey; tras `reloj.avanzar(60)`, vuelve a pasar; los 422 no cuentan.
   - `test_el_limite_usa_la_ip_real_detras_del_proxy`: con `proxies_confiables="testclient"` (la dirección con la que se conecta `TestClient`; el valor por defecto `127.0.0.1` no la incluye), dos valores distintos de `X-Forwarded-For` tienen límites separados; con el valor por defecto, la cabecera se ignora.
   - `test_una_ip_no_puede_abrir_mas_de_10_canales`: con 10 lugares ocupados en `LimiteDeCanales` para una IP, `GET /api/cobros/{id}/eventos` → 429 "Tienes demasiadas pantallas abiertas. Cierra otras e intenta de nuevo."; al liberar uno, se abre; prueba unitaria de `ocupar` y `liberar`.
@@ -341,7 +341,7 @@
   - **RF**: RF-034, RF-035, RF-041 (DP-7, R-5)
   - **Dep.**: T031
   - **Hecho cuando**: las pruebas existen y fallan (IP real, límite de canales o reloj en el límite).
-- [ ] T033 [P] [US6] Escribir las pruebas de salud, secretos y registros en `backend/tests/test_salud_y_registros.py` según [salud](contracts/salud.md)
+- [X] T033 [P] [US6] Escribir las pruebas de salud, secretos y registros en `backend/tests/test_salud_y_registros.py` según [salud](contracts/salud.md)
   - `test_salud_dice_que_credenciales_faltan_sin_mostrarlas`: con llave y sin secreto → `{"estado": "ok", "llave_pey": true, "secreto_aviso_pey": false}`; reemplaza la prueba repartida `test_salud`.
   - `test_la_llave_y_el_secreto_no_aparecen_en_respuestas_ni_registros`: recorre todas las rutas, incluidos los errores (pey 401, aviso con firma mala, validación), y busca los valores falsos de `conftest.py` en cada cuerpo, cabecera y en todo `caplog`; no aparecen.
   - `test_los_registros_dejan_cobro_error_de_pey_pago_y_aviso_ignorado`: hay una línea por cobro creado (id, `codi_qr_id` y `requestId` si vino), por consulta a pey (QT-4), por error de pey (con `requestId`), por pago registrado (id, `transactionId`, número y fuente) y por aviso ignorado o rechazado.
@@ -351,31 +351,31 @@
 
 ### Implementación de las historias 5 y 6
 
-- [ ] T034 [US5] Agregar `LimiteDeCanales` y el reloj a `LimitePorIp` en `backend/app/eventos.py`
+- [X] T034 [US5] Agregar `LimiteDeCanales` y el reloj a `LimitePorIp` en `backend/app/eventos.py`
   - `LimitePorIp(maximo_por_minuto, reloj)`: ventana deslizante de 60 s con `reloj.ahora()`.
   - `LimiteDeCanales(maximo)`: `ocupar(ip) -> bool` y `liberar(ip)`, contados mientras el canal está abierto.
   - **RF**: RF-034, RF-041
   - **Dep.**: T032
   - **Hecho cuando**: las pruebas unitarias de T032 pasan.
-- [ ] T035 [US5] Agregar IP real, CORS y límite de canales en `backend/app/main.py`
+- [X] T035 [US5] Agregar IP real, CORS y límite de canales en `backend/app/main.py`
   - `ProxyHeadersMiddleware(app, trusted_hosts=configuracion.proxies_confiables)` de uvicorn; la IP del cliente sale de `request.client.host` ya corregida.
   - `CORSMiddleware` con los orígenes de `WEB_ORIGIN` y métodos `GET` y `POST`.
   - En la ruta del canal: `ocupar` antes de abrir (429 si no hay lugar) y `liberar` en un `finally` al terminar o desconectarse.
   - **RF**: RF-034, RF-035, RF-041
   - **Dep.**: T030, T034
   - **Hecho cuando**: todas las pruebas de T032 pasan.
-- [ ] T036 [US6] Ajustar `/salud` y completar los registros en `backend/app/main.py`
+- [X] T036 [US6] Ajustar `/salud` y completar los registros en `backend/app/main.py`
   - `/salud` → `{"estado": "ok", "llave_pey": bool, "secreto_aviso_pey": bool}`, sin valores.
   - Registros que faltan según T033; nunca cabeceras, cuerpos completos, llaves, secretos ni datos bancarios.
   - **RF**: RF-036, RF-038, RF-039
   - **Dep.**: T033, T035 (mismo archivo)
   - **Hecho cuando**: todas las pruebas de T033 pasan y todo `pytest -q` sigue en verde.
-- [ ] T037 [P] [US5] Reescribir `backend/README.md` con el contrato nuevo (QP-4)
+- [X] T037 [P] [US5] Reescribir `backend/README.md` con el contrato nuevo (QP-4)
   - Enlace a `specs/001-backend-mvp/contracts/` como fuente; objeto cobro en `snake_case` con `pagos` numerados; eventos `estado`, `pago`, `vencido` y `fin` (la web llama a `close()` al recibir `fin`); arranque con un solo comando; variables de entorno (sin valores de secretos); un solo *worker*. Sin `codiQrId` ni el evento `pagado`.
   - **RF**: RF-008, RF-015, RF-029, RF-031, RF-032
   - **Dep.**: T030
   - **Hecho cuando**: `grep -n "codiQrId\|pagado\b" backend/README.md` no encuentra el contrato viejo (solo los nombres que impone pey, si se citan como tales).
-- [ ] T038 [US5] Escribir la sección F5 de `verification-guide.md` con la revisión de seguridad y las comprobaciones manuales del corte M0
+- [X] T038 [US5] Escribir la sección F5 de `verification-guide.md` con la revisión de seguridad y las comprobaciones manuales del corte M0
   - **Revisión de seguridad del corte M0** (QT-7), con su resultado anotado: secretos solo en `backend/.env` o el hosting; firma del aviso verificada antes de leer el JSON; entradas validadas en el servidor; CORS solo para `WEB_ORIGIN`; 10 cobros por minuto y 10 canales por IP real; `PROXIES_CONFIABLES` en el hosting distinto de `*`, salvo que el hosting no permita conexiones directas; un solo *worker* (quickstart §7).
   - CE-009: `git grep -nE "whsec_[A-Za-z0-9+/=]{16,}|Bearer [A-Za-z0-9._-]{16,}" -- ':!backend/tests'` sin abrir `backend/.env`; esperado: nada. Además, comprobar que `backend/tests/` solo contiene los valores falsos de `conftest.py`.
   - CE-010: `curl -s -o /dev/null -w '%{time_total}'` a `POST /webhooks/pey` con un aviso sin firma; esperado: menos de 1 s.
@@ -384,7 +384,7 @@
   - **RF**: RF-011, RF-015, RF-034, RF-035, RF-036, RF-041; CE-001, CE-003, CE-006, CE-008, CE-009, CE-010
   - **Dep.**: T036, T037
   - **Hecho cuando**: la sección existe, cada punto de seguridad tiene su resultado y Hugo puede seguirla sin otra explicación.
-- [ ] T039 [US5] Cierre de F5 y del corte M0: pruebas en verde, sección F5 completa en `verification-guide.md` y commit sugerido
+- [X] T039 [US5] Cierre de F5 y del corte M0: pruebas en verde, sección F5 completa en `verification-guide.md` y commit sugerido
   - Hugo hace los dos pagos reales de $0.01 (T038) cuando CoDi esté activo; si no lo está a las 10:00, se anota en Estado y se sigue el riesgo de §11 del plan.
   - **RF**: CE-001
   - Commit sugerido: `feat(001): proteger la demo, salud y registros; cierre del corte M0 (F5)`.

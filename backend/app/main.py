@@ -1,8 +1,8 @@
 """API de PAGO FÁCIL: crea cobros CoDi con pey y avisa a la web cuando se pagan."""
 
-import asyncio
 import json
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from decimal import Decimal, InvalidOperation
 
@@ -11,19 +11,20 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from standardwebhooks.webhooks import Webhook, WebhookVerificationError
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-from app.cobros import PAGADO, PENDIENTE, VENCIDO, Cobro, RepositorioCobros
+from app.canal import flujo_de_avisos
+from app.cobros import Cobro, RepositorioCobros
 from app.config import Configuracion, obtener_configuracion
-from app.eventos import Difusor, LimitePorIp
+from app.eventos import Difusor, LimiteDeCanales, LimitePorIp
 from app.pey import ClientePey, ErrorPey
 from app.reloj import Reloj
+from app.respaldo import ConsultaDeRespaldo
 
 registro = logging.getLogger("pago_facil")
 _registro_listo = False
 
 EVENTO_QR_PAGADO = "codi.qr.payment_received"
-SEGUNDOS_ENTRE_CONSULTAS_A_PEY = 3
-SEGUNDOS_ENTRE_LATIDOS_SSE = 15
 
 
 MENSAJE_MONTO = "Escribe un monto mayor a $0 con máximo 2 decimales"
@@ -112,13 +113,15 @@ def crear_app(
     configurar_registros()
     reloj_de_la_app = reloj or Reloj()
 
+    cliente_final = cliente_pey or ClientePey(
+        config.pey_api_base_url, config.pey_api_key.get_secret_value()
+    )
+
     @asynccontextmanager
     async def ciclo_de_vida(app: FastAPI):
-        app.state.pey = cliente_pey or ClientePey(
-            config.pey_api_base_url, config.pey_api_key.get_secret_value()
-        )
+        app.state.pey = cliente_final
         yield
-        await app.state.pey.cerrar()
+        await cliente_final.cerrar()
 
     app = FastAPI(title="PAGO FÁCIL", version="0.1.0", lifespan=ciclo_de_vida)
     app.state.reloj = reloj_de_la_app
@@ -128,10 +131,15 @@ def crear_app(
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type"],
     )
+    # La IP del límite es la del cliente, no la del proxy del hosting (RF-034, R-5).
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=config.proxies_confiables)
 
     cobros = RepositorioCobros(reloj_de_la_app, config.gracia_segundos)
     difusor = Difusor()
-    limite = LimitePorIp(config.limite_cobros_por_minuto)
+    consulta = ConsultaDeRespaldo(cliente_final, cobros, difusor, reloj_de_la_app)
+    limite = LimitePorIp(config.limite_cobros_por_minuto, reloj_de_la_app)
+    limite_canales = LimiteDeCanales(config.canales_por_ip)
+    app.state.limite_canales = limite_canales
 
     def buscar(cobro_id: str) -> Cobro:
         cobro = cobros.obtener(cobro_id)
@@ -139,57 +147,12 @@ def crear_app(
             raise HTTPException(404, "Ese cobro no existe")
         return cobro
 
-    def registrar_pago(
-        cobro: Cobro,
-        transaccion_id: str,
-        monto_recibido: Decimal,
-        monto_base: Decimal | None,
-        pagado_en: int | None,
-        fuente: str,
-    ) -> bool:
-        """Pasa el pago por la única puerta y avisa si es nuevo. Mismo aviso `pagado` hasta F4."""
-        pago = cobros.registrar_pago(
-            cobro, transaccion_id, monto_recibido, monto_base, pagado_en, fuente
-        )
-        if pago is None:
-            return False
-        registro.info("Cobro %s pagado (transacción %s)", cobro.id, transaccion_id)
-        difusor.publicar(cobro.id, PAGADO, cobro.publico())
-        return True
-
-    async def consultar_pago_en_pey(cobro: Cobro) -> None:
-        """Respaldo del aviso: pregunta a pey si el QR ya tiene un pago (spec 001, RF-025)."""
-        ahora = app.state.reloj.ahora()
-        if ahora - cobro.ultima_consulta_pey < SEGUNDOS_ENTRE_CONSULTAS_A_PEY:
-            return
-        cobro.ultima_consulta_pey = ahora
-        try:
-            resultado = await app.state.pey.pagos_del_qr(cobro.codi_qr_id, cobros.vistas)
-        except ErrorPey as error:
-            registro.warning(
-                "No se pudo consultar el cobro %s en pey: %s (requestId=%s)",
-                cobro.id,
-                error,
-                error.request_id,
-            )
-            return
-        for pago_pey in resultado.pagos:
-            registrar_pago(
-                cobro,
-                pago_pey.id,
-                pago_pey.monto,
-                pago_pey.monto_base,
-                pago_pey.pagado_en,
-                "consulta",
-            )
-            return
-
     @app.get("/salud")
     async def salud() -> dict:
         return {
             "estado": "ok",
-            "pey_api_key": bool(config.pey_api_key.get_secret_value()),
-            "pey_webhook_secret": bool(config.pey_webhook_secret.get_secret_value()),
+            "llave_pey": bool(config.pey_api_key.get_secret_value()),
+            "secreto_aviso_pey": bool(config.pey_webhook_secret.get_secret_value()),
         }
 
     @app.exception_handler(RequestValidationError)
@@ -256,40 +219,25 @@ def crear_app(
     @app.get("/api/cobros/{cobro_id}")
     async def ver_cobro(cobro_id: str) -> dict:
         cobro = buscar(cobro_id)
-        if cobro.estado(app.state.reloj.ahora()) == PENDIENTE:
-            await consultar_pago_en_pey(cobro)
+        await consulta.consultar(cobro, intervalo_minimo=3)
         return cobro.publico()
 
     @app.get("/api/cobros/{cobro_id}/eventos")
     async def eventos_cobro(cobro_id: str, request: Request) -> StreamingResponse:
+        """Sirve el canal si la IP todavía tiene lugar (spec 001, RF-028, RF-041)."""
         cobro = buscar(cobro_id)
+        ip = request.client.host if request.client else "desconocida"
+        if not limite_canales.ocupar(ip):
+            raise HTTPException(
+                429, "Tienes demasiadas pantallas abiertas. Cierra otras e intenta de nuevo."
+            )
 
-        def mensaje(evento: str, datos: dict) -> str:
-            return f"event: {evento}\ndata: {json.dumps(datos, ensure_ascii=False)}\n\n"
-
-        async def flujo():
-            cola = difusor.suscribir(cobro.id)
+        async def flujo() -> AsyncIterator[str]:
             try:
-                yield "retry: 3000\n\n"
-                if cobro.estado(app.state.reloj.ahora()) == PAGADO:
-                    yield mensaje(PAGADO, cobro.publico())
-                    return
-                while not await request.is_disconnected():
-                    try:
-                        evento, datos = await asyncio.wait_for(
-                            cola.get(), timeout=SEGUNDOS_ENTRE_LATIDOS_SSE
-                        )
-                    except TimeoutError:
-                        if cobro.estado(app.state.reloj.ahora()) == VENCIDO:
-                            yield mensaje(VENCIDO, cobro.publico())
-                            return
-                        yield ": sigo conectado\n\n"
-                        continue
-                    yield mensaje(evento, datos)
-                    if evento == PAGADO:
-                        return
+                async for trozo in flujo_de_avisos(cobro, difusor, consulta, reloj_de_la_app):
+                    yield trozo
             finally:
-                difusor.cancelar(cobro.id, cola)
+                limite_canales.liberar(ip)
 
         return StreamingResponse(
             flujo(),
@@ -299,41 +247,62 @@ def crear_app(
 
     @app.post("/webhooks/pey")
     async def webhook_pey(request: Request) -> dict:
+        """Recibe un aviso firmado y registra el pago sin llamar a pey (RF-011)."""
         secreto = config.pey_webhook_secret.get_secret_value()
         if not secreto:
-            raise HTTPException(503, "El webhook todavía no está configurado")
+            registro.warning("Aviso rechazado")
+            raise HTTPException(503, "El aviso de pey todavía no está configurado")
         cuerpo = await request.body()
         try:
             Webhook(secreto).verify(cuerpo, dict(request.headers))
         except WebhookVerificationError:
-            raise HTTPException(401, "Firma de webhook no válida")
-
-        try:
-            datos = json.loads(cuerpo)
-        except ValueError:
-            raise HTTPException(400, "El cuerpo no es JSON")
-        if not isinstance(datos, dict) or datos.get("type") != EVENTO_QR_PAGADO:
-            return {"recibido": True, "procesado": False}
+            registro.warning("Aviso rechazado")
+            raise HTTPException(401, "Firma no válida")
+        except json.JSONDecodeError:
+            registro.warning("Aviso rechazado")
+            raise HTTPException(400, "Aviso con datos no válidos")
 
         webhook_id = request.headers.get("webhook-id", "")
         if cobros.aviso_ya_visto(webhook_id):
             return {"recibido": True, "procesado": False}
-        cobros.marcar_aviso(webhook_id)
-
-        cobro = cobros.por_codi_qr(str(datos.get("codiQrId", "")))
-        transaccion_id = datos.get("transactionId")
-        if cobro is None or not transaccion_id:
-            registro.warning("Webhook de un cobro desconocido: %s", datos.get("codiQrId"))
+        try:
+            datos = json.loads(cuerpo)
+        except ValueError:
+            registro.warning("Aviso rechazado")
+            raise HTTPException(400, "Aviso con datos no válidos")
+        if not isinstance(datos, dict):
+            registro.warning("Aviso rechazado")
+            raise HTTPException(400, "Aviso con datos no válidos")
+        if datos.get("type") != EVENTO_QR_PAGADO:
+            registro.info("Aviso ignorado")
+            cobros.marcar_aviso(webhook_id)
             return {"recibido": True, "procesado": False}
         try:
-            monto = Decimal(str(datos.get("amount")))
-        except InvalidOperation:
-            raise HTTPException(400, "Monto no válido")
+            monto = Decimal(str(datos["amount"]))
+        except (KeyError, InvalidOperation):
+            monto = None
+        # NaN e Infinity se leen como Decimal, pero no son un monto (contrato aviso-pey).
+        if monto is None or not monto.is_finite():
+            registro.warning("Aviso rechazado")
+            raise HTTPException(400, "Aviso con datos no válidos")
 
-        procesado = registrar_pago(
-            cobro, transaccion_id, monto, None, datos.get("datePaid"), "aviso"
+        codi_qr_id = str(datos.get("codiQrId", ""))
+        transaccion_id = datos.get("transactionId")
+        cobro = cobros.por_codi_qr(codi_qr_id)
+        if cobro is None or not transaccion_id:
+            registro.warning("Aviso ignorado codi_qr_id=%s", codi_qr_id)
+            cobros.marcar_aviso(webhook_id)
+            return {"recibido": True, "procesado": False}
+        pago = consulta.registrar_y_avisar(
+            cobro,
+            str(transaccion_id),
+            monto,
+            None,
+            datos.get("datePaid"),
+            "aviso",
         )
-        return {"recibido": True, "procesado": procesado}
+        cobros.marcar_aviso(webhook_id)
+        return {"recibido": True, "procesado": pago is not None}
 
     return app
 
