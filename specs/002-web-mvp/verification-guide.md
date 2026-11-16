@@ -527,3 +527,29 @@ Commit sugerido:
 ```text
 docs(002): pulido del corte 2, README de la web y quickstart validado (FN)
 ```
+
+## Pruebas reales con CoDi (2026-11-16)
+
+Hugo hizo las pruebas con pey real, pagos de $0.01 desde su banco, en `http://localhost:5173` contra el backend local (`http://localhost:8000`, con `config.js` apuntando ahí; se dejó otra vez en `servidor: ""`). `/salud` dio `llave_pey: true` y `secreto_aviso_pey: false`: en local no hay webhook, así que cada pago se detectó por la consulta de respaldo del backend (`fuente=consulta` en el log).
+
+### Resultado
+
+Hugo reportó que todas las pruebas funcionaron:
+
+- Cobro de $0.01: suena y sale el aviso del pago.
+- Cobro anterior (Nuevo cobro y luego pago del QR anterior): suena y sale «Pago de un cobro anterior: $0.01 Cobro».
+- Cancelar cobro y pagar ese QR, Recargar y tocar la pantalla, y Monto libre.
+
+El log del backend lo corrobora en lo que se alcanzó a ver: al menos tres pagos registrados (`numero=1`, `fuente=consulta`) y siete cobros en escucha a la vez. Solo tres tenían canal (`/eventos`) y el resto se consultaba con `GET /api/cobros/{id}` cada 3 segundos, como pide QP-1.
+
+### Observaciones
+
+- **El primer pago tardó más de 30 s en aparecer.** El backend hizo unas 11 consultas seguidas con `pagos_nuevos=0` antes de que pey reportara el `PAID`. Es de pey y del respaldo sin webhook, no de la web. El tiempo «menos de 2 s» (CE-001) solo se puede medir con el webhook en el despliegue de #65.
+- **Un falso «no sonó».** Al principio Hugo creyó que no sonó. Fue un error al confirmar el pitido, no de la web: se comprobó que `sonar()` reproduce (`play ok`, volumen 1, sin silencio).
+- **El navegador integrado de la app no es un celular.** Las pruebas se hicieron en computadora.
+
+### Sigue pendiente
+
+- Android y iPhone con la web en HTTPS: sonido y vibración reales, el iPhone en silencio (TK-2) y el modo avión (TK-1).
+- Pantalla encendida 10 minutos (CE-011, quickstart §6).
+- Tiempos de CE-001 y CE-006 con el webhook activo.
