@@ -4,11 +4,15 @@ import { desbloquear } from "./sonido.js";
 import { crear_cobro } from "./servidor.js";
 import { aplicar_tecla } from "./teclado.js";
 import {
+  fijar_mostrar_qr,
+  mostrar_error,
   mostrar_generando,
   mostrar_pagado,
   mostrar_qr,
   mostrar_reconectando,
   mostrar_teclado,
+  mostrar_vencido,
+  ocultar_espera,
 } from "./vistas.js";
 
 const servidor = window.PAGO_FACIL.servidor;
@@ -27,19 +31,59 @@ const estado = {
 /** @type {number} */
 let cuenta_id = 0;
 
+/** @type {object | null} */
+let cobro_actual = null;
+
+/** @type {object | null} */
+let ultimo_pago = null;
+
+/** @type {number} */
+let diferencia_cuenta = 0;
+
+/**
+ * @param {object} cobro
+ * @param {object} pago
+ * @param {boolean} vigente
+ * @returns {void}
+ */
+function pintar_pagado(cobro, pago, vigente) {
+  mostrar_pagado({
+    monto_recibido: pago.monto_recibido,
+    concepto: typeof cobro.concepto === "string" ? cobro.concepto : "",
+    monto_pedido: cobro.monto,
+    monto_distinto: Boolean(pago.monto_distinto),
+    numero: pago.numero,
+    total: cobro.total_recibido,
+    vigente,
+  });
+}
+
 const escuchas = new Escuchas({
   pagado(pago, cobro) {
-    parar_cuenta();
+    cobro_actual = cobro;
+    ultimo_pago = pago;
     estado.vista = "pago_recibido";
-    mostrar_pagado({
-      monto_recibido: pago.monto_recibido,
-      concepto: typeof cobro.concepto === "string" ? cobro.concepto : "",
-      monto_pedido: cobro.monto,
-      monto_distinto: Boolean(pago.monto_distinto),
-    });
+    estado.qr_reabierto = false;
+    const segundos = restante(cobro, diferencia_cuenta, Date.now() / 1000);
+    pintar_pagado(cobro, pago, segundos >= 1);
   },
   reconectando(visible) {
     mostrar_reconectando(visible);
+  },
+  vencido(cobro) {
+    cobro_actual = cobro;
+    estado.vista = "qr_vencido";
+    mostrar_vencido(cobro, true);
+  },
+  error() {
+    parar_cuenta();
+    cobro_actual = null;
+    estado.vista = "error";
+    estado.en_pantalla = null;
+    mostrar_error();
+  },
+  fin() {
+    ocultar_espera();
   },
 });
 
@@ -69,6 +113,39 @@ function conectar() {
       void al_cobrar();
     });
   }
+  for (const boton of raiz.querySelectorAll('[data-prueba="nuevo-cobro"]')) {
+    boton.addEventListener("click", al_nuevo);
+  }
+  const libre = raiz.querySelector('[data-prueba="monto-libre"]');
+  if (libre) {
+    libre.addEventListener("click", () => {
+      void pedir_cobro(null);
+    });
+  }
+  const otra_vez = raiz.querySelector('[data-prueba="mostrar-qr"]');
+  if (otra_vez) {
+    otra_vez.addEventListener("click", al_mostrar_qr);
+  }
+}
+
+/**
+ * En el corte 1, Nuevo cobro termina la escucha y vacía el teclado (spec 002, RF-041, RF-042).
+ *
+ * @returns {void}
+ */
+function al_nuevo() {
+  escuchas.terminar_en_pantalla();
+  parar_cuenta();
+  cobro_actual = null;
+  estado.vista = "teclado";
+  estado.monto = "";
+  estado.concepto = "";
+  estado.mensaje = "";
+  estado.en_pantalla = null;
+  estado.qr_reabierto = false;
+  ultimo_pago = null;
+  mostrar_reconectando(false);
+  mostrar_teclado(estado);
 }
 
 /**
@@ -91,9 +168,19 @@ function al_tecla(evento) {
  * Pide el cobro. El segundo toque se ignora mientras el primero no termina
  * (spec 002, RF-009, RF-010, RF-011, RF-014, RF-025).
  *
+ * @returns {void}
+ */
+function al_cobrar() {
+  void pedir_cobro(Number(estado.monto));
+}
+
+/**
+ * Cobrar y Monto libre comparten el bloqueo mientras el servidor crea (spec 002, RF-008, RF-011).
+ *
+ * @param {number | null} monto
  * @returns {Promise<void>}
  */
-async function al_cobrar() {
+async function pedir_cobro(monto) {
   if (estado.accion_en_curso) {
     return;
   }
@@ -102,7 +189,7 @@ async function al_cobrar() {
   estado.accion_en_curso = "creando";
   estado.vista = "generando";
   mostrar_generando(estado);
-  const resultado = await crear_cobro(Number(estado.monto), estado.concepto);
+  const resultado = await crear_cobro(monto, estado.concepto);
   estado.accion_en_curso = null;
   if (resultado.cobro) {
     estado.en_pantalla = resultado.cobro.id;
@@ -118,6 +205,30 @@ async function al_cobrar() {
 }
 
 /**
+ * Vuelve a la vista QR del mismo cobro mientras siga vigente (spec 002, RF-069, RF-070).
+ *
+ * @returns {void}
+ */
+function al_mostrar_qr() {
+  const actual = cobro_actual;
+  if (!actual || !ultimo_pago || estado.vista !== "pago_recibido") {
+    return;
+  }
+  const segundos = restante(actual, diferencia_cuenta, Date.now() / 1000);
+  if (segundos < 1) {
+    return;
+  }
+  estado.qr_reabierto = true;
+  estado.vista = "qr";
+  mostrar_qr({
+    qr_imagen: typeof actual.qr_imagen === "string" ? actual.qr_imagen : "",
+    monto: actual.monto,
+    concepto: typeof actual.concepto === "string" ? actual.concepto : "",
+    cuenta: formato(segundos),
+  });
+}
+
+/**
  * @returns {void}
  */
 function parar_cuenta() {
@@ -125,6 +236,14 @@ function parar_cuenta() {
     window.clearInterval(cuenta_id);
     cuenta_id = 0;
   }
+}
+
+/**
+ * @param {object} cobro
+ * @returns {boolean}
+ */
+function tiene_pagos(cobro) {
+  return Array.isArray(cobro.pagos) && cobro.pagos.length > 0;
 }
 
 /**
@@ -136,15 +255,38 @@ function parar_cuenta() {
  */
 function empezar_cuenta(cobro) {
   parar_cuenta();
-  const diferencia = desfase(cobro, Date.now() / 1000);
+  cobro_actual = cobro;
+  diferencia_cuenta = desfase(cobro, Date.now() / 1000);
   const pintar = () => {
-    const segundos = restante(cobro, diferencia, Date.now() / 1000);
-    mostrar_qr({
-      qr_imagen: typeof cobro.qr_imagen === "string" ? cobro.qr_imagen : "",
-      monto: cobro.monto,
-      concepto: typeof cobro.concepto === "string" ? cobro.concepto : "",
-      cuenta: formato(segundos),
-    });
+    const actual = cobro_actual;
+    if (!actual) {
+      return;
+    }
+    const segundos = restante(actual, diferencia_cuenta, Date.now() / 1000);
+    // 0:00 es lo que se ve cuando queda menos de un segundo (RF-035, RF-071).
+    if (segundos < 1 && estado.qr_reabierto && ultimo_pago) {
+      estado.qr_reabierto = false;
+      estado.vista = "pago_recibido";
+      pintar_pagado(actual, ultimo_pago, false);
+      return;
+    }
+    if (segundos < 1 && !tiene_pagos(actual) && estado.vista === "qr") {
+      parar_cuenta();
+      estado.vista = "qr_vencido";
+      mostrar_vencido(actual, true);
+      return;
+    }
+    if (estado.vista === "qr") {
+      mostrar_qr({
+        qr_imagen: typeof actual.qr_imagen === "string" ? actual.qr_imagen : "",
+        monto: actual.monto,
+        concepto: typeof actual.concepto === "string" ? actual.concepto : "",
+        cuenta: formato(segundos),
+      });
+    }
+    if (estado.vista === "pago_recibido") {
+      fijar_mostrar_qr(segundos >= 1);
+    }
   };
   pintar();
   cuenta_id = window.setInterval(pintar, 250);

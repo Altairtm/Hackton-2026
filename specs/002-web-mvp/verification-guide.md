@@ -274,3 +274,95 @@ Commit sugerido:
 ```text
 feat(002): aviso de pago con sonido, vibración y respaldo del canal (F4)
 ```
+
+## F5 QR vencido, Nuevo cobro y vista Error
+
+Fecha: 2026-11-15. Si el QR cumple 10 minutos sin un pago, se oculta y queda "QR vencido", con el aviso de que un pago tardío todavía se avisa. Con un pago ya recibido, al llegar a 0:00 la pantalla se queda en verde. `fin`, o una consulta con la hora del servidor ya pasada de `fin_ventana`, cierra el canal y no vuelve a preguntar. Si el servidor ya no conoce el cobro, se ve la vista Error. Nuevo cobro, desde QR, QR vencido, Pago recibido o Error, vuelve al teclado vacío y deja de escuchar ese cobro. Las teclas y los botones miden al menos 44 px de alto.
+
+### Verlo en local, sin pagar
+
+Sirve la web como en F2 (`servidor: ""`) o contra el simulado. Con el servidor real, un cobro de $0.01 sigue el quickstart §5; no lo pagues si solo quieres ver el vencimiento.
+
+1. Teclea un monto, escribe un concepto y pulsa Cobrar.
+2. Pulsa Nuevo cobro. **Esperado**: el teclado vuelve vacío. Un pago de ese QR ya no cambia la pantalla.
+3. Crea otro cobro y espera 10 minutos sin pagarlo. **Esperado**: desaparece el QR y se lee "QR vencido", el monto, el concepto y "Si el cliente ya pagó, aquí te avisamos".
+4. Si ese cobro se pagara dentro de los siguientes 10 minutos, sonaría y se vería "Pago recibido".
+
+Los pagos reales del corte 1 (quickstart §5 y §6) quedan pendientes: hace falta tu autorización y la web en HTTPS. No se hicieron en esta sesión.
+
+### Revisión de seguridad del corte 1
+
+- Secretos: `git grep -nE "whsec_|Bearer |PEY_API_KEY|PEY_WEBHOOK_SECRET|pey\\.mx" -- web` no encontró nada.
+- Textos de fuera: `git grep -n "innerHTML\\|outerHTML\\|insertAdjacentHTML\\|document.write" -- web/js` no encontró nada. El concepto, los mensajes y los montos se pintan con `textContent`.
+- La política de `web/index.html` es la de R-11: `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self' http://localhost:8000 https:`.
+- Un pago solo se anuncia en `escucha.js` cuando el servidor trae un pago nuevo en el cobro (`sonar` y `vibrar` dentro de ese recorrido). La pantalla no marca un pago por su cuenta.
+- Cobrar y Monto libre se ignoran mientras `accion_en_curso` está ocupada. La web no reintenta crear un cobro sola.
+
+### Comandos
+
+```bash
+uv run --directory backend pytest ../web -q
+uv run --directory backend ruff check --config pyproject.toml ../web
+uv run --directory backend ruff format --config pyproject.toml --check ../web
+uv run --directory backend pytest -q
+uv run --directory backend ruff check .
+uv run --directory backend ruff format --check .
+```
+
+**Esperado en la web**: `176 passed, 29 skipped`. Las 29 saltadas siguen siendo la lógica pura en WebKit.
+
+**Esperado en el backend**: `109 passed`. F5 no tocó el backend.
+
+### Revisión de Claude de F5 (2026-11-15)
+
+Claude revisó `escucha.js`, `vistas.js`, `app.js`, `estilos.css`, `test_vencido_y_nuevo.py` y `test_seguridad.py`. Ninguna prueba fallaba y el comportamiento es el de la spec. La suite es estable: 7 corridas seguidas dieron `176 passed, 29 skipped`.
+
+- **Corregido: la suite tardaba 4.5 minutos** (F4 tardaba 1). Seis pruebas saltaban 5 o 10 minutos con `clock.run_for`, que dispara el intervalo de la cuenta unas 2400 veces: 11 s en Chromium y 19 s en WebKit cada una. Pasaron a `clock.fast_forward`, que dispara los temporizadores una vez; la cuenta se recalcula con `Date.now()`, igual que cuando el celular se duerme. Las mismas 176 pruebas pasan en unos 100 s. Anotado como TK-3 en el plan.
+- **Corregido, sin cambio de comportamiento:** `_visible` en `test_vencido_y_nuevo.py` no tenía tipo de retorno, y el JSDoc de `empezar_cuenta` estaba colgado encima de `tiene_pagos`, en `app.js`.
+- **Revisión de seguridad (T042), repetida por Claude:** los dos `git grep` salen vacíos (secretos y HTML inyectado), la política de `web/index.html` es la de R-11 con los ajustes de QP-2, `crear_cobro` solo se llama desde `pedir_cobro` y un pago solo se anuncia desde `escucha.js` con un cobro del servidor.
+- **Comprobado a mano, contra el simulado, a 320 px:** con el QR en pantalla, el evento `vencido` oculta el QR y deja "QR vencido", "$25.50", "Tacos" y "Si el cliente ya pagó, aquí te avisamos". Un pago tardío con el QR vencido muestra "Pago recibido". Con el cobro olvidado y el canal rechazado con 404, la consulta lleva a la vista Error con el texto de RF-057. Nuevo cobro, desde QR, Pago recibido y Error, deja el teclado en "$" y sin concepto. La página no se desplaza hacia los lados y los botones visibles miden 44 px.
+- **No se probó:** los pagos reales (quickstart §5 y §6), el silencio del iPhone y el modo avión. Esperan a CoDi y a tu celular.
+
+### Cierre
+
+Commit sugerido:
+
+```text
+feat(002): QR vencido, Nuevo cobro y vista de error (F5)
+```
+
+## F6 Monto libre, número de pago y Mostrar QR otra vez
+
+Fecha: 2026-11-15. Con el monto vacío o en cero, Monto libre pide un cobro sin monto y el QR dice "Monto libre". Con un monto mayor a cero, la tecla está apagada. Desde el segundo pago se ven "Pago 2" y el total. Mientras el QR siga vigente, "Mostrar QR otra vez" vuelve a enseñarlo; si ese QR llega a 0:00, regresa a Pago recibido y no a QR vencido. Un pago nuevo con el QR reabierto suena y vuelve a la pantalla verde.
+
+### Verlo en local
+
+1. Deja el concepto, por ejemplo "Propina", y pulsa Monto libre sin teclear un monto. **Esperado**: "Generando QR…" y después el QR con "Monto libre" y "Propina". Cobrar sigue apagado.
+2. Teclea 25.50. **Esperado**: Monto libre se apaga y Cobrar se prende.
+3. Cobra $25.50. Cuando llegue un pago, se ve "Pago recibido" sin "Pago 1". Un segundo pago al mismo QR muestra "Pago 2" y el total.
+4. Antes de que pasen 10 minutos, pulsa "Mostrar QR otra vez". **Esperado**: vuelve el QR y su cuenta. Si se acaba el tiempo, vuelve "Pago recibido".
+
+El pago real de monto libre y el segundo pago de $0.01 (quickstart §7) quedan pendientes: hace falta tu autorización. No se hicieron en esta sesión.
+
+### Revisión de Claude de F6 (2026-11-15)
+
+Claude revisó `test_monto_libre_y_reuso.py`, y `vistas.js` y `app.js` en lo de Monto libre, "Pago n" y Mostrar QR otra vez. Ninguna prueba fallaba. Los campos que usa (`monto: null`, `fin_ventana`, `total_recibido`, `pagos[].numero`) existen en `backend/app/cobros.py`, y el backend acepta `monto: null` como monto libre (`validar_monto`).
+
+- **Corregido: el total sin rótulo.** Desde el segundo pago la vista mostraba "Pago 2" y "$35.50" sin decir que era la suma, bajo un monto grande que es el del último pago. Ahora dice `Total recibido: $35.50` (igual que el rótulo de monto distinto de F4). La prueba `test_el_segundo_pago_muestra_pago_2_y_el_total` ganó esa comprobación y se vio fallar (`Actual value: $35.50`) antes del arreglo en `web/js/vistas.js`.
+- **Corregido, sin cambio de comportamiento:** una asignación sin uso de `id_cobro` en `test_mostrar_qr_otra_vez_vuelve_al_qr_mientras_siga_vigente`.
+- **Comprobado a mano, contra el simulado, a 320 px:** sin teclear monto, Monto libre crea el QR con "Monto libre" y "Propina"; con 25 tecleado se apaga y Cobrar se prende. Dos pagos (12 y 5) dejaron "Pago 2" y "Total recibido: $17.00", sin "monto distinto". "Mostrar QR otra vez" volvió al QR con su cuenta (9:35) y "Monto libre".
+- **No se probó:** los pagos reales de $0.01 (quickstart §7).
+
+### Cierre
+
+Commit sugerido, si F5 y F6 van juntas:
+
+```text
+feat(002): QR vencido, monto libre, número de pago y mostrar el QR otra vez (F5 y F6)
+```
+
+Si se separan, el de F6 es:
+
+```text
+feat(002): monto libre, número de pago y mostrar el QR otra vez (F6)
+```

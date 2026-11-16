@@ -1,7 +1,10 @@
-import { cobrar_activo } from "./teclado.js";
+import { cobrar_activo, monto_libre_activo } from "./teclado.js";
 
 const TEXTO_GENERANDO = "Generando QR…";
 const TEXTO_CODI = "Escanéalo desde la app de tu banco, en la opción CoDi";
+const TEXTO_ESPERA = "Si el cliente ya pagó, aquí te avisamos";
+const TEXTO_ERROR =
+  "Este cobro ya no se puede seguir. Revisa la app de tu banco para confirmar si llegó el pago.";
 let listas = false;
 
 /**
@@ -17,7 +20,14 @@ function asegurar() {
     return;
   }
   listas = true;
-  raiz.append(crear_teclado(), crear_generando(), crear_qr(), crear_pagado());
+  raiz.append(
+    crear_teclado(),
+    crear_generando(),
+    crear_qr(),
+    crear_vencido(),
+    crear_pagado(),
+    crear_error(),
+  );
 }
 
 /**
@@ -53,6 +63,12 @@ function crear_teclado() {
   cobrar.setAttribute("data-prueba", "cobrar");
   cobrar.textContent = "Cobrar";
   vista.append(cobrar);
+
+  const libre = document.createElement("button");
+  libre.type = "button";
+  libre.setAttribute("data-prueba", "monto-libre");
+  libre.textContent = "Monto libre";
+  vista.append(libre);
 
   const mensaje = document.createElement("p");
   mensaje.setAttribute("data-prueba", "mensaje");
@@ -117,8 +133,61 @@ function crear_qr() {
   const cuenta = document.createElement("p");
   cuenta.setAttribute("data-prueba", "cuenta");
 
-  vista.append(imagen, monto, concepto, indicacion, cuenta);
+  vista.append(imagen, monto, concepto, indicacion, cuenta, crear_nuevo_cobro());
   return vista;
+}
+
+/**
+ * @returns {HTMLElement}
+ */
+function crear_vencido() {
+  const vista = document.createElement("section");
+  vista.setAttribute("data-prueba", "vista-vencido");
+  vista.hidden = true;
+
+  const titulo = document.createElement("p");
+  titulo.setAttribute("data-prueba", "vencido");
+  titulo.textContent = "QR vencido";
+
+  const monto = document.createElement("p");
+  monto.setAttribute("data-prueba", "vencido-monto");
+
+  const concepto = document.createElement("p");
+  concepto.setAttribute("data-prueba", "vencido-concepto");
+
+  const espera = document.createElement("p");
+  espera.setAttribute("data-prueba", "vencido-espera");
+  espera.textContent = TEXTO_ESPERA;
+
+  vista.append(titulo, monto, concepto, espera, crear_nuevo_cobro());
+  return vista;
+}
+
+/**
+ * @returns {HTMLElement}
+ */
+function crear_error() {
+  const vista = document.createElement("section");
+  vista.setAttribute("data-prueba", "vista-error");
+  vista.hidden = true;
+
+  const texto = document.createElement("p");
+  texto.setAttribute("data-prueba", "error");
+  texto.textContent = TEXTO_ERROR;
+
+  vista.append(texto, crear_nuevo_cobro());
+  return vista;
+}
+
+/**
+ * @returns {HTMLButtonElement}
+ */
+function crear_nuevo_cobro() {
+  const boton = document.createElement("button");
+  boton.type = "button";
+  boton.setAttribute("data-prueba", "nuevo-cobro");
+  boton.textContent = "Nuevo cobro";
+  return boton;
 }
 
 /**
@@ -143,7 +212,21 @@ function crear_pagado() {
   distinto.setAttribute("data-prueba", "pagado-distinto");
   distinto.hidden = true;
 
-  vista.append(titulo, monto, concepto, distinto);
+  const numero = document.createElement("p");
+  numero.setAttribute("data-prueba", "pagado-numero");
+  numero.hidden = true;
+
+  const total = document.createElement("p");
+  total.setAttribute("data-prueba", "pagado-total");
+  total.hidden = true;
+
+  const otra_vez = document.createElement("button");
+  otra_vez.type = "button";
+  otra_vez.setAttribute("data-prueba", "mostrar-qr");
+  otra_vez.textContent = "Mostrar QR otra vez";
+  otra_vez.hidden = true;
+
+  vista.append(titulo, monto, concepto, distinto, numero, total, otra_vez, crear_nuevo_cobro());
   return vista;
 }
 
@@ -157,6 +240,14 @@ function pesos(valor) {
     return "";
   }
   return `$${numero.toFixed(2)}`;
+}
+
+/**
+ * @param {number | null | undefined} valor
+ * @returns {string}
+ */
+function texto_monto(valor) {
+  return typeof valor === "number" && Number.isFinite(valor) ? pesos(valor) : "Monto libre";
 }
 
 /**
@@ -201,6 +292,10 @@ export function mostrar_teclado(estado) {
   if (cobrar instanceof HTMLButtonElement) {
     cobrar.disabled = !cobrar_activo(estado.monto ?? "");
   }
+  const libre = document.querySelector('[data-prueba="monto-libre"]');
+  if (libre instanceof HTMLButtonElement) {
+    libre.disabled = !monto_libre_activo(estado.monto ?? "");
+  }
   if (mensaje) {
     mensaje.textContent = estado.mensaje ?? "";
   }
@@ -240,9 +335,7 @@ export function mostrar_qr(datos) {
   }
   const monto = document.querySelector('[data-prueba="qr-monto"]');
   if (monto) {
-    const valor = datos.monto;
-    monto.textContent =
-      typeof valor === "number" && Number.isFinite(valor) ? `$${valor.toFixed(2)}` : "Monto libre";
+    monto.textContent = texto_monto(datos.monto);
   }
   const concepto = document.querySelector('[data-prueba="qr-concepto"]');
   if (concepto) {
@@ -262,7 +355,15 @@ export function mostrar_qr(datos) {
 /**
  * Pinta Pago recibido solo con texto (spec 002, RF-023, RF-026, RF-028, RF-077).
  *
- * @param {{ monto_recibido?: number, concepto?: string, monto_pedido?: number | null, monto_distinto?: boolean }} datos
+ * @param {{
+ *   monto_recibido?: number,
+ *   concepto?: string,
+ *   monto_pedido?: number | null,
+ *   monto_distinto?: boolean,
+ *   numero?: number,
+ *   total?: number,
+ *   vigente?: boolean,
+ * }} datos
  * @returns {void}
  */
 export function mostrar_pagado(datos) {
@@ -289,7 +390,90 @@ export function mostrar_pagado(datos) {
       distinto.textContent = "";
     }
   }
+  const numero = document.querySelector('[data-prueba="pagado-numero"]');
+  const total = document.querySelector('[data-prueba="pagado-total"]');
+  const segundo = Number(datos.numero) >= 2;
+  if (numero) {
+    numero.hidden = !segundo;
+    numero.textContent = segundo ? `Pago ${datos.numero}` : "";
+  }
+  if (total) {
+    total.hidden = !segundo;
+    total.textContent = segundo ? `Total recibido: ${pesos(datos.total)}` : "";
+  }
+  const otra_vez = document.querySelector('[data-prueba="mostrar-qr"]');
+  if (otra_vez) {
+    otra_vez.hidden = !datos.vigente;
+  }
   mostrar_solo("vista-pagado");
+}
+
+/**
+ * Muestra u oculta Mostrar QR otra vez sin volver a pintar el pago (spec 002, RF-069).
+ *
+ * @param {boolean} visible
+ * @returns {void}
+ */
+export function fijar_mostrar_qr(visible) {
+  const otra_vez = document.querySelector('[data-prueba="mostrar-qr"]');
+  if (otra_vez) {
+    otra_vez.hidden = !visible;
+  }
+}
+
+/**
+ * Pinta QR vencido, sin la imagen del QR (spec 002, RF-035, RF-036, RF-037, RF-038, RF-077).
+ *
+ * @param {{ monto?: number | null, concepto?: string }} cobro
+ * @param {boolean} con_espera
+ * @returns {void}
+ */
+export function mostrar_vencido(cobro, con_espera) {
+  asegurar();
+  const titulo = document.querySelector('[data-prueba="vencido"]');
+  if (titulo) {
+    titulo.textContent = "QR vencido";
+  }
+  const monto = document.querySelector('[data-prueba="vencido-monto"]');
+  if (monto) {
+    monto.textContent = texto_monto(cobro.monto);
+  }
+  const concepto = document.querySelector('[data-prueba="vencido-concepto"]');
+  if (concepto) {
+    concepto.textContent = cobro.concepto ?? "";
+  }
+  const espera = document.querySelector('[data-prueba="vencido-espera"]');
+  if (espera) {
+    espera.textContent = TEXTO_ESPERA;
+    espera.hidden = !con_espera;
+  }
+  mostrar_solo("vista-vencido");
+}
+
+/**
+ * Quita el aviso de que el pago todavía puede llegar (spec 002, RF-038, RF-040).
+ *
+ * @returns {void}
+ */
+export function ocultar_espera() {
+  const espera = document.querySelector('[data-prueba="vencido-espera"]');
+  if (espera) {
+    espera.hidden = true;
+  }
+}
+
+/**
+ * Pinta la vista Error (spec 002, RF-057, RF-077).
+ *
+ * @returns {void}
+ */
+export function mostrar_error() {
+  asegurar();
+  const texto = document.querySelector('[data-prueba="error"]');
+  if (texto) {
+    texto.textContent = TEXTO_ERROR;
+  }
+  mostrar_solo("vista-error");
 }
 
 /**

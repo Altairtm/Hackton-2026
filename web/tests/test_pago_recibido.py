@@ -284,7 +284,7 @@ def test_pago_recibido_se_queda_varios_minutos(pagina: Page, servidor: ServidorS
     _esperar_abierto(pagina)
     servidor.agregar_pago(id_cobro, 25.5)
     expect(pagina.locator('[data-prueba="vista-pagado"]')).to_be_visible()
-    pagina.clock.run_for(5 * 60_000)
+    pagina.clock.fast_forward(5 * 60_000)
     expect(pagina.locator('[data-prueba="vista-pagado"]')).to_be_visible()
     expect(pagina.locator('[data-prueba="pagado"]')).to_have_text("Pago recibido")
 

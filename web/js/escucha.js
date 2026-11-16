@@ -76,11 +76,22 @@ export class Escucha {
         this._aplicar(datos.cobro);
       }
     });
+    fuente.addEventListener("vencido", (evento) => {
+      if (this._fuente !== fuente || this._terminada) {
+        return;
+      }
+      const datos = leer_json(evento);
+      if (datos) {
+        this.cobro = datos;
+      }
+      this._al_recibir({ tipo: "vencido", escucha: this, cobro: datos || this.cobro });
+    });
     fuente.addEventListener("fin", () => {
       if (this._fuente !== fuente || this._terminada) {
         return;
       }
       console.info(`escucha ${this.id}: fin`);
+      this._al_recibir({ tipo: "fin", escucha: this });
       this.terminar();
     });
     fuente.addEventListener("error", () => {
@@ -155,11 +166,23 @@ export class Escucha {
       return;
     }
     if (resultado.cobro) {
-      this._aplicar(resultado.cobro);
+      const cobro = resultado.cobro;
+      if (cobro.hora_servidor != null && cobro.hora_servidor >= cobro.fin_ventana) {
+        console.info(`escucha ${this.id}: fin`);
+        this._al_recibir({ tipo: "fin", escucha: this, cobro });
+        this.terminar();
+        return;
+      }
+      this._aplicar(cobro);
       if (this._fuente && this._fuente.readyState === EventSource.CLOSED) {
         this._programar_reintento();
       }
       this._consultar_luego(CONSULTA_MS);
+      return;
+    }
+    if (resultado.no_existe) {
+      this._al_recibir({ tipo: "no_existe", escucha: this });
+      this.terminar();
       return;
     }
     if (resultado.sin_conexion) {
@@ -227,7 +250,13 @@ export class Escucha {
  */
 export class Escuchas {
   /**
-   * @param {{ pagado: (pago: object, cobro: object) => void, reconectando: (visible: boolean) => void }} vistas
+   * @param {{
+   *   pagado: (pago: object, cobro: object) => void,
+   *   reconectando: (visible: boolean) => void,
+   *   vencido: (cobro: object) => void,
+   *   error: () => void,
+   *   fin: () => void,
+   * }} vistas
    */
   constructor(vistas) {
     this._vistas = vistas;
@@ -256,6 +285,56 @@ export class Escuchas {
   }
 
   /**
+   * El corte 1 deja de escuchar el cobro en pantalla (spec 002, RF-042).
+   *
+   * @returns {void}
+   */
+  terminar_en_pantalla() {
+    const id = this._en_pantalla;
+    if (!id) {
+      return;
+    }
+    const escucha = this._por_id.get(id);
+    this._por_id.delete(id);
+    this._en_pantalla = null;
+    if (escucha) {
+      escucha.terminar();
+    }
+    this._vistas.reconectando(false);
+    this._soltar_si_vacia();
+  }
+
+  /**
+   * @param {string} id
+   * @param {string} tipo
+   * @returns {void}
+   */
+  _cerrar(id, tipo) {
+    const era_pantalla = id === this._en_pantalla;
+    this._por_id.delete(id);
+    if (era_pantalla) {
+      this._en_pantalla = null;
+      this._vistas.reconectando(false);
+      if (tipo === "no_existe") {
+        this._vistas.error();
+      } else {
+        this._vistas.fin();
+      }
+    }
+    this._soltar_si_vacia();
+  }
+
+  /**
+   * @returns {void}
+   */
+  _soltar_si_vacia() {
+    if (this._por_id.size === 0) {
+      this._pantalla_pedida = false;
+      void mantener_encendida(false);
+    }
+  }
+
+  /**
    * @param {{ tipo: string, escucha: Escucha, cobro?: object }} aviso
    * @returns {void}
    */
@@ -267,6 +346,18 @@ export class Escuchas {
     }
     if (aviso.tipo === "abierto" && en_pantalla) {
       this._vistas.reconectando(false);
+      return;
+    }
+    if (aviso.tipo === "vencido" && en_pantalla) {
+      const cobro = aviso.cobro || aviso.escucha.cobro;
+      const pagos = cobro && Array.isArray(cobro.pagos) ? cobro.pagos : [];
+      if (pagos.length === 0 && cobro) {
+        this._vistas.vencido(cobro);
+      }
+      return;
+    }
+    if (aviso.tipo === "fin" || aviso.tipo === "no_existe") {
+      this._cerrar(aviso.escucha.id, aviso.tipo);
       return;
     }
     if (aviso.tipo !== "cobro" || !aviso.cobro) {

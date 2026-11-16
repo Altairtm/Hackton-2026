@@ -409,7 +409,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
 
 ### Pruebas de las historias 5 y 6 (primero, deben fallar antes de implementar)
 
-- [ ] T035 [P] [US5] Escribir las pruebas del vencimiento y del fin de la escucha en `web/tests/test_vencido_y_nuevo.py` (archivo nuevo)
+- [X] T035 [P] [US5] Escribir las pruebas del vencimiento y del fin de la escucha en `web/tests/test_vencido_y_nuevo.py` (archivo nuevo)
   - Todas con `reloj(pagina, hora)`.
   - `test_al_vencer_se_oculta_el_qr_y_se_ve_qr_vencido` (escenario 1, dos casos): la cuenta llega a "0:00" con `run_for(600_000)`, y el simulado emite `vencido`. En los dos: `vista-vencido` con `vencido` = "QR vencido", sin `qr`, `vencido-monto` = "$25.50" y `vencido-concepto` = "Tacos".
   - `test_qr_vencido_dice_que_aun_se_avisa_el_pago` (escenario 2): `vencido-espera` = "Si el cliente ya pagó, aquí te avisamos".
@@ -423,7 +423,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **RF**: RF-035, RF-036, RF-037, RF-038, RF-039, RF-040, RF-060, RF-061, RF-077
   - **Dep.**: T034
   - **Hecho cuando**: las pruebas existen y fallan porque no hay vista QR vencido ni fin de escucha.
-- [ ] T036 [US6] Escribir las pruebas de Nuevo cobro y de la vista Error en `web/tests/test_vencido_y_nuevo.py`
+- [X] T036 [US6] Escribir las pruebas de Nuevo cobro y de la vista Error en `web/tests/test_vencido_y_nuevo.py`
   - `test_nuevo_cobro_vuelve_al_teclado_vacio_desde_cada_vista` (parametrizada con QR, QR vencido, Pago recibido y Error; escenario 1): `nuevo-cobro` visible; al tocarlo, `vista-teclado` con `monto` = "$" y `concepto` vacío.
   - `test_en_el_corte_1_nuevo_cobro_deja_de_escuchar_el_cobro`: tras Nuevo cobro, `canales(pagina)` muestra el canal de ese cobro `CLOSED` y un `agregar_pago` no suena (comportamiento temporal de §1.2; T049 lo reemplaza).
   - `test_si_el_servidor_ya_no_conoce_el_cobro_se_ve_la_vista_error`: `olvidar(id)` y `cortar_canal(id, rechazar_con=404)`; la consulta da 404 → `vista-error` con `error` = "Este cobro ya no se puede seguir. Revisa la app de tu banco para confirmar si llegó el pago.".
@@ -432,13 +432,13 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **RF**: RF-040, RF-041, RF-042, RF-057, RF-059, RF-060, RF-061
   - **Dep.**: T035
   - **Hecho cuando**: las pruebas existen y fallan porque no hay Nuevo cobro ni vista Error.
-- [ ] T037 [US2] Escribir la revisión conjunta de 320 px en `web/tests/test_seguridad.py`
+- [X] T037 [US2] Escribir la revisión conjunta de 320 px en `web/tests/test_seguridad.py`
   - Cada vista ya se midió en su tarea de pruebas (QT-1); esta prueba recorre el flujo completo de una vez.
   - `test_todas_las_vistas_caben_en_320_px_y_muestran_pago_facil`: con `set_viewport_size({"width": 320, …})`, en cada vista (Teclado, Generando QR, QR, QR vencido, Pago recibido y Error) `document.documentElement.scrollWidth <= 320` y `marca` visible; en la vista QR, el ancho de `qr` es al menos el 70 % del ancho de la página (CE-007).
   - **RF**: RF-060, RF-061
   - **Dep.**: T036
   - **Hecho cuando**: la prueba existe y falla porque el flujo completo usa Nuevo cobro, que todavía no existe.
-- [ ] T038 [US1] Escribir la revisión conjunta de seguridad del corte 1 en `web/tests/test_seguridad.py`
+- [X] T038 [US1] Escribir la revisión conjunta de seguridad del corte 1 en `web/tests/test_seguridad.py`
   - La dirección de `config.js` y el texto del concepto y del `detail` ya se probaron en T011, T023, T029 y T035 (QT-1); esta prueba recorre el flujo completo de una vez.
   - `test_la_web_solo_pide_cosas_al_servidor_configurado` (CE-010): con `pagina.on("request")`, durante crear, pagar, cortar el canal, consultar, vencer, Nuevo cobro y la vista Error, toda URL empieza por el origen del simulado.
   - **RF**: RF-063
@@ -447,26 +447,26 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
 
 ### Implementación de las historias 5 y 6
 
-- [ ] T039 [US5] Implementar el vencimiento y el fin de la escucha en `web/js/escucha.js`, `web/js/vistas.js` y `web/js/app.js`
+- [X] T039 [US5] Implementar el vencimiento y el fin de la escucha en `web/js/escucha.js`, `web/js/vistas.js` y `web/js/app.js`
   - `Escucha`: en `vencido`, avisa a `Escuchas`; en `fin`, `close()`, detiene la consulta y el reintento, y termina; si una consulta trae `hora_servidor ≥ fin_ventana`, termina igual (RF-040); un 404 en la consulta del cobro en pantalla avisa a `Escuchas` para la vista Error (RF-057).
   - Vista QR vencido: `vencido`, `vencido-monto`, `vencido-concepto` y `vencido-espera` solo mientras la escucha siga viva; sin imagen del QR.
   - `app.js`: cuando la cuenta llega a 0 o llega `vencido`, si el cobro en pantalla no tiene pagos, vista QR vencido. Los pagos tardíos siguen el camino normal de `Escuchas` (RF-039).
   - **RF**: RF-035, RF-036, RF-037, RF-038, RF-039, RF-040, RF-057, RF-077
   - **Dep.**: T035
   - **Hecho cuando**: las pruebas de T035 pasan en los dos celulares.
-- [ ] T040 [US6] Implementar Nuevo cobro y la vista Error en `web/js/vistas.js`, `web/js/app.js` y `web/js/escucha.js`
+- [X] T040 [US6] Implementar Nuevo cobro y la vista Error en `web/js/vistas.js`, `web/js/app.js` y `web/js/escucha.js`
   - `nuevo-cobro` en las vistas QR, QR vencido, Pago recibido y Error. Al tocarlo: termina la escucha del cobro en pantalla (corte 1), `en_pantalla = null`, `monto = ""`, `concepto = ""` y vista Teclado.
   - Vista Error con `error` y el texto de RF-057.
   - `Escuchas` llama a `mantener_encendida(false)` cuando no queda ninguna escucha.
   - **RF**: RF-041, RF-042, RF-057, RF-059
   - **Dep.**: T036, T039
   - **Hecho cuando**: las pruebas de T036 pasan en los dos celulares.
-- [ ] T041 [US2] Ajustar `web/estilos.css` (y lo que haga falta en `web/js/vistas.js`) para 320 px y para la seguridad del corte 1
+- [X] T041 [US2] Ajustar `web/estilos.css` (y lo que haga falta en `web/js/vistas.js`) para 320 px y para la seguridad del corte 1
   - Ningún elemento más ancho que la página; teclas y botones con al menos 44 px de alto (principio VII); textos largos del concepto con `overflow-wrap: anywhere`.
   - **RF**: RF-061, RF-063
   - **Dep.**: T037, T038, T040
   - **Hecho cuando**: las pruebas de T037 y T038 pasan en los dos celulares.
-- [ ] T042 [US1] Revisión de seguridad del corte 1 en la sección F5 de `verification-guide.md`
+- [X] T042 [US1] Revisión de seguridad del corte 1 en la sección F5 de `verification-guide.md`
   - Secretos (CE-010): `git grep -nE "whsec_|Bearer |PEY_API_KEY|PEY_WEBHOOK_SECRET|pey\.mx" -- web`; esperado: nada.
   - Textos de fuera (RF-077): `git grep -n "innerHTML\|outerHTML\|insertAdjacentHTML\|document.write" -- web/js`; esperado: nada.
   - Política de seguridad de contenido: la de `web/index.html` es exactamente la de R-11.
@@ -475,7 +475,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **RF**: RF-011, RF-021, RF-063, RF-077
   - **Dep.**: T041
   - **Hecho cuando**: cada punto tiene su resultado anotado.
-- [ ] T043 [US6] Cierre de F5 y del corte 1: pruebas en verde, sección F5 completa en `verification-guide.md`, pagos reales y commit sugerido
+- [X] T043 [US6] Cierre de F5 y del corte 1: pruebas en verde, sección F5 completa en `verification-guide.md`, pagos reales y commit sugerido
   - Requiere: C-2 aplicado en la 001 (si el nombre del campo cambió, ajustar `cuenta.js`, `servidor_simulado.py` y el contrato de uso del servidor antes de cerrar), la web publicada con HTTPS (#65) y CoDi activo.
   - Con autorización de Hugo en ese momento: quickstart §5 en un Android con Chrome y en un iPhone con Safari (CE-001, CE-004 y CE-006, con el tiempo del QR medido sin contar el primer cobro) y quickstart §6 en el Android (CE-011).
   - Si a las 23:59 del 19 nov falta #65 o CoDi, se anota en Estado y el corte 1 queda cerrado en código, con los pagos reales pendientes.
@@ -496,7 +496,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
 
 ### Pruebas (primero, deben fallar antes de implementar)
 
-- [ ] T044 [US1] Escribir las pruebas de Monto libre en `web/tests/test_monto_libre_y_reuso.py` (archivo nuevo)
+- [X] T044 [US1] Escribir las pruebas de Monto libre en `web/tests/test_monto_libre_y_reuso.py` (archivo nuevo)
   - `test_monto_libre_solo_esta_activo_sin_monto_y_crea_un_cobro_sin_monto` (escenarios 8 y 9): `monto-libre` activo con "$" y "$0.", desactivado con "$25.50"; con el concepto "Propina", el simulado recibe `{"monto": null, "concepto": "Propina"}` y la vista QR muestra `qr-monto` = "Monto libre" y `qr-concepto` = "Propina".
   - `test_mientras_se_crea_un_monto_libre_se_ignoran_otros_toques`: con `demora=2`, un segundo toque a Monto libre o a Cobrar no agrega otro `POST`.
   - `test_un_monto_libre_vencido_muestra_monto_libre`: en QR vencido, `vencido-monto` = "Monto libre".
@@ -504,7 +504,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **RF**: RF-007, RF-008, RF-011, RF-016, RF-023, RF-037, RF-065
   - **Dep.**: T043
   - **Hecho cuando**: las pruebas existen y fallan porque no hay tecla Monto libre.
-- [ ] T045 [US3] Escribir las pruebas de "Pago n" y Mostrar QR otra vez en `web/tests/test_monto_libre_y_reuso.py`
+- [X] T045 [US3] Escribir las pruebas de "Pago n" y Mostrar QR otra vez en `web/tests/test_monto_libre_y_reuso.py`
   - `test_el_segundo_pago_muestra_pago_2_y_el_total` (escenario 5): con un pago no aparecen `pagado-numero` ni `pagado-total`; con el segundo, `pagado-numero` = "Pago 2" y `pagado-total` contiene "$35.50" (25.50 + 10).
   - `test_mostrar_qr_otra_vez_vuelve_al_qr_mientras_siga_vigente` (escenario 9): `mostrar-qr` visible dentro de la vigencia; al tocarlo, vista QR del mismo cobro con su `cuenta`; después de la vigencia, `mostrar-qr` no aparece.
   - `test_si_el_qr_que_se_volvio_a_mostrar_vence_vuelve_pago_recibido`: con `reloj(pagina, hora)` y el QR reabierto, `run_for` hasta "0:00" → `vista-pagado`, no `vista-vencido`.
@@ -515,18 +515,18 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
 
 ### Implementación
 
-- [ ] T046 [US1] Implementar Monto libre en `web/js/vistas.js` y `web/js/app.js`
+- [X] T046 [US1] Implementar Monto libre en `web/js/vistas.js` y `web/js/app.js`
   - `monto-libre` en la vista Teclado, separado de Cobrar y activo según `monto_libre_activo`. Al tocarlo, el mismo camino que Cobrar con `crear_cobro(null, concepto)` y el mismo bloqueo de `accion_en_curso` (RF-011). En las vistas QR y QR vencido, `monto_libre: true` muestra "Monto libre".
   - **RF**: RF-007, RF-008, RF-011, RF-016, RF-037, RF-065
   - **Dep.**: T044
   - **Hecho cuando**: las pruebas de T044 pasan en los dos celulares.
-- [ ] T047 [US3] Implementar "Pago n", el total y Mostrar QR otra vez en `web/js/vistas.js` y `web/js/app.js`
+- [X] T047 [US3] Implementar "Pago n", el total y Mostrar QR otra vez en `web/js/vistas.js` y `web/js/app.js`
   - Desde el segundo pago: `pagado-numero` = "Pago " + número y `pagado-total` con `total_recibido`.
   - `mostrar-qr` solo mientras `restante > 0`; al tocarlo, `qr_reabierto = true` y vista QR del mismo cobro. Si la cuenta llega a 0 con `qr_reabierto`, vuelve Pago recibido (data-model §1). Un pago nuevo vuelve a Pago recibido y pone `qr_reabierto = false`.
   - **RF**: RF-026, RF-027, RF-069, RF-070, RF-071
   - **Dep.**: T045, T046
   - **Hecho cuando**: las pruebas de T045 pasan y todas las anteriores siguen en verde.
-- [ ] T048 [US3] Cierre de F6: pruebas en verde, sección F6 en `verification-guide.md`, pago real de monto libre y commit sugerido
+- [X] T048 [US3] Cierre de F6: pruebas en verde, sección F6 en `verification-guide.md`, pago real de monto libre y commit sugerido
   - Con autorización de Hugo: quickstart §7, "Monto libre", con un pago real de $0.01; y un segundo pago de $0.01 al mismo QR para ver "Pago 2".
   - Commit sugerido: `feat(002): monto libre, número de pago y mostrar el QR otra vez (F6)`.
   - **RF**: RF-008, RF-027
