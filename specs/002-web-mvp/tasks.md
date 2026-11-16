@@ -3,7 +3,7 @@
 - **Spec**: [spec.md](spec.md), estado: Aprobada el 2026-11-15, con el cambio C-3 aplicado (RF-078)
 - **Plan**: [plan.md](plan.md), estado: Aprobado el 2026-11-15 (DP-1 a DP-17, QP-1 a QP-5)
 - **Fecha**: 2026-11-15
-- **Estado**: `F7 terminada (Grok, 2026-11-15)`. F6 terminada el 2026-11-15. F1 terminada el 2026-11-15 (Hugo la revisó). El C-2 a la spec 001 (F0) quedó aplicado el 2026-11-15 con el campo `hora_servidor`.
+- **Estado**: `F8 implementada por Grok y revisada por Codex (2026-11-15)`. Prueba CoDi real de F8 pendiente. F7 terminada el 2026-11-15. F1 terminada el 2026-11-15 (Hugo la revisó). El C-2 a la spec 001 (F0) quedó aplicado el 2026-11-15 con el campo `hora_servidor`.
 - **Entrada**: los documentos de `specs/002-web-mvp/`: plan.md, spec.md, research.md, data-model.md, contracts/ y quickstart.md
 
 > **Notas para los comandos de spec-kit.**
@@ -600,7 +600,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
 
 ### Pruebas (primero, deben fallar antes de implementar)
 
-- [ ] T054 [US8] Escribir las pruebas de recuperar en `web/tests/test_recuperar.py` (archivo nuevo)
+- [X] T054 [US8] Escribir las pruebas de recuperar en `web/tests/test_recuperar.py` (archivo nuevo)
   - Lógica de `memoria.js` (`only_browser("chromium")`):
     - `test_memoria_guarda_y_lee_los_cobros_en_escucha`: `guardar("Xk3vQ9aZ1bNc", ["Ab12Cd34Ef56"])` y `leer()` devuelve lo mismo, con la clave `pago_facil_escucha`.
     - `test_lo_recordado_que_no_tiene_forma_valida_se_ignora` (RF-077): `leer()` devuelve nada con un texto que no es JSON, con claves de más o de menos, con `anteriores` que no es lista, con un id de 33 caracteres y con un id `<script>alert(1)</script>`.
@@ -620,19 +620,19 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
 
 ### Implementación
 
-- [ ] T055 [US8] Implementar `guardar(en_pantalla, anteriores)` y `leer()` en `web/js/memoria.js` (archivo nuevo, puro)
+- [X] T055 [US8] Implementar `guardar(en_pantalla, anteriores)` y `leer()` en `web/js/memoria.js` (archivo nuevo, puro)
   - Clave `pago_facil_escucha` con `{"en_pantalla": <id o null>, "anteriores": [<id>, …]}`. Al leer: JSON con exactamente esas dos claves, `en_pantalla` `null` o id, `anteriores` lista de ids, y cada id "de 1 a 32 caracteres `[A-Za-z0-9_-]`"; si algo no cumple, se ignora todo (data-model §4). Todo dentro de `try/catch`: si falla, se sigue sin recordar (RF-076).
   - **RF**: RF-051, RF-076, RF-077
   - **Dep.**: T054
   - **Hecho cuando**: las pruebas de lógica de T054 pasan.
-- [ ] T056 [US8] Implementar la recuperación en `web/js/app.js`, la escritura de lo recordado en `web/js/escucha.js` y el aviso "Toca para activar el sonido" en `web/js/vistas.js`
+- [X] T056 [US8] Implementar la recuperación en `web/js/app.js`, la escritura de lo recordado en `web/js/escucha.js` y el aviso "Toca para activar el sonido" en `web/js/vistas.js`
   - `Escuchas` llama a `memoria.guardar` en cada cambio: crear, Nuevo cobro, cancelar y terminar una escucha (R-10).
   - Al arrancar, `app.js` hace `memoria.leer()` y, por cada id, `ver_cobro`: 404 → el de pantalla va a la vista Error y un anterior se descarta; `hora_servidor ≥ fin_ventana` → se descarta; si no, se muestran sin sonido los pagos que ya tiene (el de pantalla en su vista y los anteriores con su aviso), se llama a `avisados.marcar_todos` y empieza su escucha.
   - Si se recuperó algo, `activar-sonido` hasta el primer toque en cualquier parte, que llama a `desbloquear()`; mientras tanto, los pagos nuevos se muestran sin `sonar()` ni `vibrar()` (RF-055).
   - **RF**: RF-051, RF-052, RF-053, RF-054, RF-055, RF-056, RF-057, RF-075, RF-076
   - **Dep.**: T055
   - **Hecho cuando**: todas las pruebas de T054 pasan y las anteriores siguen en verde.
-- [ ] T057 [US8] Cierre de F8: pruebas en verde, sección F8 en `verification-guide.md`, prueba real de recargar y commit sugerido
+- [X] T057 [US8] Cierre de F8: pruebas en verde, sección F8 en `verification-guide.md`, prueba real de recargar y commit sugerido
   - Con autorización de Hugo: quickstart §7, "Recargar", con un pago real de $0.01 (CE-014).
   - Commit sugerido: `feat(002): recuperar los cobros en escucha al recargar la página (F8)`.
   - **RF**: CE-014

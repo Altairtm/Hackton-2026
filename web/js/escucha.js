@@ -1,5 +1,6 @@
 import { Avisados } from "./avisados.js";
 import { desfase } from "./cuenta.js";
+import { guardar } from "./memoria.js";
 import { mantener_encendida } from "./pantalla.js";
 import { ver_cobro } from "./servidor.js";
 import { sonar, vibrar } from "./sonido.js";
@@ -14,13 +15,13 @@ const REINTENTO_MS = 15_000;
 export class Escucha {
   /**
    * @param {string} id
-   * @param {object} cobro
+   * @param {object | null} cobro
    * @param {(aviso: { tipo: string, escucha: Escucha, cobro?: object }) => void} al_recibir
    */
   constructor(id, cobro, al_recibir) {
     this.id = id;
     this.cobro = cobro;
-    this.desfase = desfase(cobro, Date.now() / 1000);
+    this.desfase = cobro ? desfase(cobro, Date.now() / 1000) : 0;
     /** @type {"sin_canal" | "abriendo" | "abierto" | "cortado" | "cerrado"} */
     this.canal = "sin_canal";
     this.consultando = false;
@@ -45,6 +46,11 @@ export class Escucha {
       return;
     }
     this._abrir_canal();
+  }
+
+  /** Inicia la consulta de un cobro recordado antes de abrir su canal (spec 002, RF-051). */
+  recuperar() {
+    void this._consultar();
   }
 
   /**
@@ -176,9 +182,10 @@ export class Escucha {
     if (this._terminada) {
       return;
     }
+    const tipo = this.cobro ? "cobro" : "recuperado";
     this.cobro = cobro;
     this.desfase = desfase(cobro, Date.now() / 1000);
-    this._al_recibir({ tipo: "cobro", escucha: this, cobro });
+    this._al_recibir({ tipo, escucha: this, cobro });
   }
 
   /**
@@ -210,10 +217,19 @@ export class Escucha {
     }
     if (resultado.cobro) {
       const cobro = resultado.cobro;
-      if (cobro.hora_servidor != null && cobro.hora_servidor >= cobro.fin_ventana) {
+      if (
+        cobro.hora_servidor != null &&
+        cobro.fin_ventana != null &&
+        cobro.hora_servidor >= cobro.fin_ventana
+      ) {
         console.info(`escucha ${this.id}: fin`);
         this._al_recibir({ tipo: "fin", escucha: this, cobro });
         this.terminar();
+        return;
+      }
+      if (!this.cobro) {
+        this._parar_consulta();
+        this._aplicar(cobro);
         return;
       }
       this._aplicar(cobro);
@@ -294,6 +310,7 @@ export class Escucha {
 export class Escuchas {
   /**
    * @param {{
+   *   recuperado: (cobro: object, en_pantalla: boolean) => void,
    *   pagado: (pago: object, cobro: object) => void,
    *   anterior: (pago: object, cobro: object) => void,
    *   cancelado: (cobro: object) => void,
@@ -313,6 +330,18 @@ export class Escuchas {
     /** @type {string | null} */
     this._en_pantalla = null;
     this._pantalla_pedida = false;
+    this._sin_sonido = false;
+  }
+
+  /**
+   * Tras recargar, los pagos se muestran sin sonar hasta el primer toque
+   * (spec 002, RF-054, RF-055).
+   *
+   * @param {boolean} sin_sonido
+   * @returns {void}
+   */
+  fijar_sin_sonido(sin_sonido) {
+    this._sin_sonido = sin_sonido;
   }
 
   /**
@@ -320,16 +349,46 @@ export class Escuchas {
    * @returns {void}
    */
   poner_en_pantalla(cobro) {
-    if (!this._pantalla_pedida) {
-      this._pantalla_pedida = true;
-      void mantener_encendida(true);
-    }
-    const escucha = new Escucha(cobro.id, cobro, (aviso) => {
-      this._recibir(aviso);
-    });
-    this._por_id.set(cobro.id, escucha);
+    this._pedir_pantalla_encendida();
+    this._agregar(cobro.id, cobro);
     this._en_pantalla = cobro.id;
     this._repartir();
+    this._recordar();
+  }
+
+  /**
+   * Registra todos los ids antes de consultarlos para conservar su orden y poder
+   * guardar cambios aunque otras recuperaciones sigan pendientes (spec 002, RF-051).
+   *
+   * @param {{ en_pantalla: string | null, anteriores: string[] }} recordado
+   * @returns {void}
+   */
+  recuperar(recordado) {
+    this._en_pantalla = recordado.en_pantalla;
+    this._anteriores = [...new Set(recordado.anteriores)].filter((id) => id !== this._en_pantalla);
+    if (this._en_pantalla) {
+      this._agregar(this._en_pantalla, null);
+    }
+    for (const id of this._anteriores) {
+      this._agregar(id, null).es_anterior = true;
+    }
+    this._recordar();
+    for (const escucha of this._por_id.values()) {
+      escucha.recuperar();
+    }
+  }
+
+  /**
+   * @param {string} id
+   * @param {object | null} cobro
+   * @returns {Escucha}
+   */
+  _agregar(id, cobro) {
+    const escucha = new Escucha(id, cobro, (aviso) => {
+      this._recibir(aviso);
+    });
+    this._por_id.set(id, escucha);
+    return escucha;
   }
 
   /**
@@ -351,6 +410,7 @@ export class Escuchas {
     }
     this._vistas.reconectando(false);
     this._repartir();
+    this._recordar();
   }
 
   /**
@@ -362,19 +422,21 @@ export class Escuchas {
   _repartir() {
     /** @type {Set<string>} */
     const deben = new Set();
-    if (this._en_pantalla && this._por_id.has(this._en_pantalla)) {
+    if (this._en_pantalla && this._por_id.get(this._en_pantalla)?.cobro) {
       deben.add(this._en_pantalla);
     }
     this._anteriores = this._anteriores.filter((id) => this._por_id.has(id));
-    for (const id of this._anteriores.slice(-2)) {
+    const recuperados = this._anteriores.filter((id) => this._por_id.get(id).cobro);
+    for (const id of recuperados.slice(-2)) {
       deben.add(id);
     }
     for (const [id, escucha] of this._por_id) {
-      if (deben.has(id)) {
-        escucha.tomar_canal();
-      } else {
+      if (escucha.cobro && !deben.has(id)) {
         escucha.soltar_canal();
       }
+    }
+    for (const id of deben) {
+      this._por_id.get(id).tomar_canal();
     }
   }
 
@@ -403,7 +465,23 @@ export class Escuchas {
       }
     }
     this._repartir();
+    this._recordar();
     this._soltar_si_vacia();
+  }
+
+  /**
+   * @returns {void}
+   */
+  _recordar() {
+    guardar(this._en_pantalla, this._anteriores.slice());
+  }
+
+  /** @returns {void} */
+  _pedir_pantalla_encendida() {
+    if (!this._pantalla_pedida) {
+      this._pantalla_pedida = true;
+      void mantener_encendida(true);
+    }
   }
 
   /**
@@ -446,13 +524,32 @@ export class Escuchas {
       this._cerrar(aviso.escucha.id, aviso.tipo);
       return;
     }
+    if (aviso.tipo === "recuperado" && aviso.cobro) {
+      this._pedir_pantalla_encendida();
+      this._avisados.marcar_todos(aviso.cobro);
+      this._vistas.recuperado(aviso.cobro, en_pantalla);
+      if (!en_pantalla) {
+        const pagos = Array.isArray(aviso.cobro.pagos) ? aviso.cobro.pagos : [];
+        for (const pago of pagos) {
+          this._vistas.anterior(pago, aviso.cobro);
+        }
+      }
+      this._repartir();
+      return;
+    }
     if (aviso.tipo !== "cobro" || !aviso.cobro) {
+      return;
+    }
+    if (en_pantalla && aviso.cobro.estado === "cancelado") {
+      this._vistas.cancelado(aviso.cobro);
       return;
     }
     const nuevos = this._avisados.nuevos(aviso.cobro);
     for (const pago of nuevos) {
-      sonar();
-      vibrar();
+      if (!this._sin_sonido) {
+        sonar();
+        vibrar();
+      }
       if (en_pantalla) {
         this._vistas.pagado(pago, aviso.cobro);
       } else {

@@ -318,6 +318,7 @@ def test_un_monto_distinto_muestra_el_pedido_y_el_recibido(
     # Sin rótulos, "$25.50 $20.00" no dice cuál se pidió y cuál llegó (RF-028).
     expect(distinto).to_have_text("Pediste $25.50, recibiste $20.00")
 
+    pagina.evaluate("() => localStorage.removeItem('pago_facil_escucha')")
     pagina.reload()
     id_cobro = _cobrar(pagina, servidor)
     _esperar_abierto(pagina)

@@ -146,6 +146,7 @@ def test_mostrar_qr_otra_vez_vuelve_al_qr_mientras_siga_vigente(
     expect(pagina.locator('[data-prueba="vista-qr"]')).to_be_visible()
     expect(pagina.locator('[data-prueba="cuenta"]')).to_be_visible()
 
+    pagina.evaluate("() => localStorage.removeItem('pago_facil_escucha')")
     pagina.reload()
     _teclear(pagina, "25.50")
     pagina.locator('[data-prueba="concepto"]').fill("Tacos")

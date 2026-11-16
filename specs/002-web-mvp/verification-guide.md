@@ -415,3 +415,50 @@ Commit sugerido:
 ```text
 feat(002): escuchar cobros anteriores y cancelar un cobro (F7)
 ```
+
+## F8 Recuperar los cobros al recargar
+
+Fecha: 2026-11-15. Al recargar en el mismo celular, la pantalla recupera los cobros que seguían en escucha. El que estaba en pantalla vuelve en la vista de su estado (QR, QR vencido o Pago recibido) y los anteriores se siguen escuchando. Lo que se pagó con la página cerrada se muestra sin sonar ni vibrar: el de pantalla con su número de pago y su total, y cada pago de un cobro anterior con su aviso. Hasta el primer toque se lee "Toca para activar el sonido"; un pago anterior a ese toque se ve sin sonar, y el siguiente ya suena.
+
+Lo guardado es solo identificadores, en `localStorage` con la clave `pago_facil_escucha`. Si el texto no tiene la forma pedida, o un id no es válido, se ignora todo y vuelve el teclado. Si el celular no deja leer ni escribir, la recarga también vuelve al teclado vacío. Un cobro cuya ventana ya terminó no se muestra ni abre canal. Si el servidor ya no conoce al de pantalla, se ve la vista Error; si es un anterior, desaparece sin esa vista.
+
+Cada pago de un cobro anterior deja su propio aviso, uno debajo del otro. Las pruebas que recargan para empezar otro cobro desde el teclado borran antes `pago_facil_escucha`: si no, F8 les devolvería el cobro anterior.
+
+### Revisión de Codex de F8 (2026-11-15)
+
+- Un cobro cancelado que estaba en pantalla vuelve al teclado y sigue en escucha como anterior. Si llega un pago, se muestra el aviso de cobro anterior.
+- Al recuperar un cobro pagado, «Mostrar QR otra vez» conserva la cuenta regresiva. Al terminar, vuelve a «Pago recibido».
+- Las consultas de recuperación avanzan por separado. Si falla una, se conserva el identificador y se reintenta a los 3 segundos. Si falta confirmar el cobro en pantalla, se ve «Reconectando…» antes de poder iniciar otro cobro. Cada identificador abre como máximo un canal.
+- Si falla la escritura en `localStorage`, se intenta borrar el recuerdo desactualizado para que la recarga vuelva al teclado vacío. Un toque en la pantalla habilita el audio, y los pagos recuperados se muestran en silencio.
+- La primera corrida completa falló en WebKit en `test_si_el_servidor_rechaza_el_canal_se_sigue_con_la_consulta`. Las pruebas de reconexión con 429 y 503 esperan ahora las peticiones del navegador antes de avanzar el reloj.
+
+### Verlo en local
+
+Con la web y el servidor en marcha (quickstart §7, "Recargar"):
+
+1. Crea un cobro y recarga la página. **Esperado**: vuelve ese cobro y, abajo, "Toca para activar el sonido".
+2. Sin tocar, provoca un pago. **Esperado**: se ve "Pago recibido" y no suena.
+3. Toca la pantalla y provoca otro pago. **Esperado**: el aviso desaparece y este sí suena.
+
+La verificación con un pago CoDi real de $0.01 sigue pendiente de autorización específica de Hugo.
+
+### Comandos
+
+```bash
+uv run --directory backend pytest ../web -q
+uv run --directory backend ruff check --config pyproject.toml ../web
+uv run --directory backend ruff format --config pyproject.toml --check ../web
+uv run --directory backend pytest -q
+uv run --directory backend ruff check .
+uv run --directory backend ruff format --check .
+```
+
+Resultado de la revisión. Web con Chromium y WebKit, **243 pruebas aprobadas y 32 omitidas** por la marca `only_browser("chromium")`. Backend, **109 pruebas aprobadas**. Ruff pasó la revisión de lint y formato en ambos. Se mantienen los avisos de obsolescencia de pytest-playwright sobre `base_url` y de Starlette sobre `TestClient`.
+
+### Cierre
+
+Commit sugerido:
+
+```text
+feat(002): recuperar los cobros en escucha al recargar la página (F8)
+```

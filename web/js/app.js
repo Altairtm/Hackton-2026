@@ -1,16 +1,19 @@
 import { desfase, formato, restante } from "./cuenta.js";
 import { Escuchas } from "./escucha.js";
 import { desbloquear } from "./sonido.js";
+import { leer } from "./memoria.js";
 import { cancelar_cobro, crear_cobro } from "./servidor.js";
 import { aplicar_tecla } from "./teclado.js";
 import {
   fijar_mostrar_qr,
+  mostrar_activar_sonido,
   mostrar_aviso_anterior,
   mostrar_error,
   mostrar_generando,
   mostrar_pagado,
   mostrar_qr,
   mostrar_reconectando,
+  mostrar_recuperando,
   mostrar_teclado,
   mostrar_vencido,
   ocultar_espera,
@@ -63,6 +66,14 @@ function pintar_pagado(cobro, pago, vigente) {
 }
 
 const escuchas = new Escuchas({
+  recuperado(cobro, en_pantalla) {
+    if (!estado.sonido_desbloqueado) {
+      mostrar_activar_sonido(true);
+    }
+    if (en_pantalla) {
+      mostrar_cobro_recuperado(cobro);
+    }
+  },
   pagado(pago, cobro) {
     cobro_actual = cobro;
     ultimo_pago = pago;
@@ -99,12 +110,17 @@ const escuchas = new Escuchas({
     mostrar_error();
   },
   fin() {
-    ocultar_espera();
+    if (estado.vista === "recuperando") {
+      volver_al_teclado();
+    } else {
+      ocultar_espera();
+    }
   },
 });
 
 mostrar_teclado(estado);
 conectar();
+recuperar();
 
 /**
  * @returns {void}
@@ -369,6 +385,73 @@ function empezar_cuenta(cobro) {
   };
   pintar();
   cuenta_id = window.setInterval(pintar, 250);
+}
+
+/**
+ * Muestra un cobro recuperado sin sonar (spec 002, RF-052, RF-053).
+ *
+ * @param {object} cobro
+ * @returns {void}
+ */
+function mostrar_cobro_recuperado(cobro) {
+  mostrar_reconectando(false);
+  if (cobro.estado === "cancelado") {
+    volver_al_teclado();
+    return;
+  }
+  const pagos = Array.isArray(cobro.pagos) ? cobro.pagos : [];
+  estado.en_pantalla = cobro.id;
+  if (pagos.length > 0) {
+    const pago = pagos[pagos.length - 1];
+    ultimo_pago = pago;
+    estado.vista = "pago_recibido";
+    empezar_cuenta(cobro);
+    const segundos = restante(cobro, diferencia_cuenta, Date.now() / 1000);
+    pintar_pagado(cobro, pago, segundos >= 1);
+    return;
+  }
+  if (cobro.estado === "vencido") {
+    cobro_actual = cobro;
+    estado.vista = "qr_vencido";
+    mostrar_vencido(cobro, true);
+    return;
+  }
+  estado.vista = "qr";
+  empezar_cuenta(cobro);
+}
+
+/**
+ * El primer toque en cualquier parte vuelve a permitir el sonido (spec 002, RF-054).
+ *
+ * @returns {void}
+ */
+function pedir_toque_para_sonar() {
+  escuchas.fijar_sin_sonido(true);
+  document.addEventListener("click", () => {
+    escuchas.fijar_sin_sonido(false);
+    desbloquear();
+    estado.sonido_desbloqueado = true;
+    mostrar_activar_sonido(false);
+  }, { capture: true, once: true });
+}
+
+/**
+ * Al abrir la página, recupera los cobros guardados en este celular
+ * (spec 002, RF-051, RF-052, RF-056, RF-057, RF-076).
+ *
+ * @returns {void}
+ */
+function recuperar() {
+  const recordado = leer();
+  if (!recordado || (!recordado.en_pantalla && recordado.anteriores.length === 0)) {
+    return;
+  }
+  pedir_toque_para_sonar();
+  if (recordado.en_pantalla) {
+    estado.vista = "recuperando";
+    mostrar_recuperando();
+  }
+  escuchas.recuperar(recordado);
 }
 
 export { servidor };

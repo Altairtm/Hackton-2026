@@ -169,10 +169,14 @@ def test_al_volver_el_canal_se_deja_de_consultar_y_se_quita_reconectando(
     """Al abrirse de nuevo el canal se quita el aviso y la consulta (spec 002, RF-031)."""
     reloj(pagina, _HORA)
     abrir(pagina, servidor)
-    id_cobro = _cobrar(pagina, servidor)
+    id_cobro = "CanalCortado"
+    servidor.responder_crear(cuerpo=servidor.cobro_de_prueba(id=id_cobro))
     servidor.cortar_canal(id_cobro, rechazar_con=503)
+    assert _cobrar(pagina, servidor) == id_cobro
     expect(pagina.locator('[data-prueba="reconectando"]')).to_be_visible()
-    pagina.clock.run_for(3_000)
+    ruta_consulta = f"{servidor.origen}/api/cobros/{id_cobro}"
+    with pagina.expect_request_finished(lambda peticion: peticion.url == ruta_consulta):
+        pagina.clock.run_for(3_000)
     assert _consultas(servidor, id_cobro)
     _esperar_cerrado(pagina, id_cobro)
     servidor.permitir_canal(id_cobro)
@@ -197,24 +201,20 @@ def test_si_el_servidor_rechaza_el_canal_se_sigue_con_la_consulta(
     """Un canal rechazado se sigue por consulta y se reintenta a los 15 s (spec 002, RF-034)."""
     reloj(pagina, _HORA)
     abrir(pagina, servidor)
-    id_cobro = _cobrar(pagina, servidor)
+    id_cobro = "CanalRechazado"
+    servidor.responder_crear(cuerpo=servidor.cobro_de_prueba(id=id_cobro))
     servidor.cortar_canal(id_cobro, rechazar_con=429)
+    assert _cobrar(pagina, servidor) == id_cobro
     expect(pagina.locator('[data-prueba="reconectando"]')).to_be_visible()
-    pagina.clock.run_for(3_000)
-    primeras = len(_consultas(servidor, id_cobro))
-    assert primeras >= 1
-    pagina.clock.run_for(3_000)
-    assert len(_consultas(servidor, id_cobro)) > primeras
+    ruta_consulta = f"{servidor.origen}/api/cobros/{id_cobro}"
+    for _ in range(2):
+        with pagina.expect_request_finished(lambda peticion: peticion.url == ruta_consulta):
+            pagina.clock.run_for(3_000)
     _esperar_cerrado(pagina, id_cobro)
     servidor.permitir_canal(id_cobro)
-    pagina.clock.run_for(15_000)
-    ruta = f"/api/cobros/{id_cobro}/eventos"
-    repeticiones = [
-        pedido
-        for metodo, pedido, _cuerpo in servidor.peticiones
-        if metodo == "GET" and pedido == ruta
-    ]
-    assert len(repeticiones) >= 2
+    with pagina.expect_response(f"{ruta_consulta}/eventos") as reabierto:
+        pagina.clock.run_for(9_000)
+    assert reabierto.value.status == 200
 
 
 def test_si_la_consulta_falla_por_red_se_reintenta_en_3_segundos(

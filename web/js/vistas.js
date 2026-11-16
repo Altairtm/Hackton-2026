@@ -270,7 +270,7 @@ function texto_monto(valor) {
 }
 
 /**
- * @param {string} nombre
+ * @param {string | null} nombre
  */
 function mostrar_solo(nombre) {
   const raiz = document.getElementById("vistas");
@@ -287,6 +287,12 @@ function mostrar_solo(nombre) {
     }
     nodo.hidden = prueba !== nombre;
   }
+}
+
+/** Muestra la espera antes de recuperar el cobro en pantalla (spec 002, RF-051, RF-052). */
+export function mostrar_recuperando() {
+  mostrar_solo(null);
+  mostrar_reconectando(true);
 }
 
 /**
@@ -527,19 +533,41 @@ export function mostrar_aviso_anterior(monto, concepto) {
   if (!raiz) {
     return;
   }
-  let aviso = raiz.querySelector('[data-prueba="aviso-anterior"]');
-  if (!(aviso instanceof HTMLButtonElement)) {
-    const boton = document.createElement("button");
-    boton.type = "button";
-    boton.setAttribute("data-prueba", "aviso-anterior");
-    boton.addEventListener("click", () => {
-      boton.hidden = true;
-    });
-    raiz.append(boton);
-    aviso = boton;
+  let caja = raiz.querySelector('[data-prueba="avisos-anteriores"]');
+  if (!(caja instanceof HTMLElement)) {
+    caja = document.createElement("div");
+    caja.setAttribute("data-prueba", "avisos-anteriores");
+    raiz.append(caja);
   }
-  aviso.hidden = false;
+  const aviso = document.createElement("button");
+  aviso.type = "button";
+  aviso.setAttribute("data-prueba", "aviso-anterior");
   aviso.textContent = `Pago de un cobro anterior: ${pesos(monto)} ${concepto}`.trim();
+  aviso.addEventListener("click", () => {
+    aviso.hidden = true;
+  });
+  caja.append(aviso);
+}
+
+/**
+ * Pide un toque para poder volver a sonar tras recargar (spec 002, RF-054).
+ *
+ * @param {boolean} visible
+ * @returns {void}
+ */
+export function mostrar_activar_sonido(visible) {
+  const raiz = document.getElementById("vistas");
+  if (!raiz) {
+    return;
+  }
+  let aviso = raiz.querySelector('[data-prueba="activar-sonido"]');
+  if (!(aviso instanceof HTMLElement)) {
+    aviso = document.createElement("p");
+    aviso.setAttribute("data-prueba", "activar-sonido");
+    raiz.append(aviso);
+  }
+  aviso.textContent = "Toca para activar el sonido";
+  aviso.hidden = !visible;
 }
 
 /**

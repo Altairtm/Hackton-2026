@@ -81,6 +81,7 @@ def test_al_vencer_se_oculta_el_qr_y_se_ve_qr_vencido(
     _assert_vencido(pagina)
 
     servidor.fijar_hora(_HORA + 600)
+    pagina.evaluate("() => localStorage.removeItem('pago_facil_escucha')")
     pagina.reload()
     id_cobro = _cobrar(pagina, servidor)
     _esperar_abierto(pagina)

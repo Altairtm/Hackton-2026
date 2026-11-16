@@ -117,6 +117,7 @@ def test_todas_las_vistas_caben_en_320_px_y_muestran_pago_facil(
     expect(pagina.locator('[data-prueba="vista-pagado"]')).to_be_visible()
     _cabe(pagina)
 
+    pagina.evaluate("() => localStorage.removeItem('pago_facil_escucha')")
     pagina.reload()
     id_cobro = _cobrar(pagina, servidor)
     _esperar_abierto(pagina)
@@ -124,6 +125,7 @@ def test_todas_las_vistas_caben_en_320_px_y_muestran_pago_facil(
     expect(pagina.locator('[data-prueba="vista-vencido"]')).to_be_visible()
     _cabe(pagina)
 
+    pagina.evaluate("() => localStorage.removeItem('pago_facil_escucha')")
     pagina.reload()
     id_cobro = _cobrar(pagina, servidor)
     _esperar_abierto(pagina)
