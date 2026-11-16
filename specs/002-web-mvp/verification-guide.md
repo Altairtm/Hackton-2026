@@ -203,3 +203,74 @@ Commit sugerido:
 ```text
 feat(002): teclado, crear el cobro y mostrar el QR con cuenta regresiva (F3)
 ```
+
+## F4 Aviso de pago y respaldo del canal
+
+Fecha: 2026-11-15. Con el QR en pantalla, un pago nuevo suena, vibra en Android y deja la vista verde "Pago recibido". Si el canal se corta, se ve "Reconectando…" sin quitar el QR, y la consulta cada 3 s descubre el pago igual. Al volver el canal se quita el aviso. El mismo pago no suena dos veces.
+
+Las pruebas se escribieron antes del código y fallaban porque no había escucha. La de WebKit del canal rechazado además esperaba "Reconectando…" antes de adelantar el reloj: si no, la consulta todavía no estaba programada.
+
+### Modo avión (reconexión del navegador)
+
+Con un cobro ya en la vista QR, en el celular:
+
+1. Activa el modo avión. **Esperado**: aparece "Reconectando…" y el QR sigue.
+2. Quita el modo avión. **Esperado**: desaparece "Reconectando…".
+3. Provoca un pago después. **Esperado**: suena y se ve "Pago recibido".
+
+Esto no lo cubre la suite: el reloj de las pruebas no controla la reconexión automática del navegador (TK-1).
+
+### Silencio del iPhone (R-7)
+
+Pendiente, anotado como TK-2 en el plan §14. Hace falta el iPhone de Hugo. No queda dicho si suena o no.
+
+1. Sirve la web en la red local, como el quickstart §3, pero con la IP de la Mac en lugar de `localhost` (en `config.js` y en `WEB_ORIGIN`).
+2. Abre esa dirección en el iPhone, crea un cobro y pon el teléfono en silencio.
+3. Provoca un pago (simulado, o $0.01 real si Hugo lo autoriza en ese momento).
+4. Anota en TK-2 si se oyó el sonido.
+
+Al terminar, deja `web/config.js` con `servidor: ""`.
+
+### Comprobado en el navegador, contra el simulado
+
+A 320 px: teclear 25.50 y "Tacos", pulsar Cobrar, y al llegar el pago se ve la pantalla verde con "Pago recibido", "$25.50" y "Tacos". El QR se oculta. `scrollWidth` queda en 320 y la marca sigue visible. El modo avión y el silencio del iPhone no se probaron aquí.
+
+### Comandos
+
+```bash
+uv run --directory backend pytest ../web -q
+uv run --directory backend ruff check --config pyproject.toml ../web
+uv run --directory backend ruff format --config pyproject.toml --check ../web
+uv run --directory backend pytest -q
+uv run --directory backend ruff check .
+uv run --directory backend ruff format --check .
+```
+
+**Esperado en la web**: `122 passed, 29 skipped`. Las 29 saltadas siguen siendo la lógica pura en WebKit. El aviso `PytestRemovedIn10Warning` de pytest-playwright sigue igual.
+
+**Esperado en el backend**: `109 passed`. F4 no tocó el backend. Sigue el aviso de Starlette sobre `TestClient` y httpx.
+
+Ruff de la web y del backend queda limpio.
+
+### Revisión de Claude de F4 (2026-11-15)
+
+Claude revisó lo que implementó Grok: `web/js/escucha.js`, `vistas.js`, `app.js`, `estilos.css` y las pruebas de `test_pago_recibido.py` y `test_respaldo.py`. Ninguna prueba fallaba. La suite es estable: 5 corridas seguidas dieron `122 passed, 29 skipped`; el backend da `109 passed` y ruff queda limpio en la web y en el backend.
+
+- **Corregido: monto distinto sin rótulos.** La vista mostraba `$25.50 $20.00`, sin decir cuál se pidió y cuál llegó (RF-028). Ahora dice `Pediste $25.50, recibiste $20.00`. La prueba `test_un_monto_distinto_muestra_el_pedido_y_el_recibido` ganó esa comprobación y se vio fallar (`Actual value: $25.50 $20.00`) antes del arreglo en `web/js/vistas.js`.
+- **Corregido, sin cambio de comportamiento:** `_abortar_consulta` en `test_respaldo.py` no tenía tipo de retorno (`AGENTS.md` §5).
+- **Los eventos del simulado coinciden con los del backend real** (`backend/app/canal.py` y `respaldo.py`): `estado` trae el cobro y `pago` trae `{pago, cobro}`, que es lo que lee `escucha.js`.
+- **Comprobado a mano, contra el simulado, a 320 px, siguiendo esta guía:** con el QR en pantalla se cortó el canal y salió «Reconectando…» sin quitar el QR. Un pago sin aviso por el canal lo descubrió la consulta de 3 s y la pantalla se puso verde con "Pago recibido", "$25.50" y "Tacos"; el QR se oculta y la cuenta se detiene. Al restaurar el canal desapareció «Reconectando…», y un segundo pago de $20.00 con monto distinto mostró el rótulo nuevo. `scrollWidth` quedó en 320. La consola solo mostró el `503` que provoqué al cortar el canal y el aviso de Chrome de que bloquea `vibrate` si no hubo un toque real: las pruebas hicieron los toques por código, en un celular real sí vibra.
+
+Pendiente, a la vista en el navegador:
+
+- El texto blanco de "Pago recibido" sobre el verde `#128a3e` tiene un contraste de unos 4.4:1, justo debajo del 4.5:1 recomendado para texto pequeño. El monto grande sí pasa. El diseño real llega más adelante.
+- `estilos.css` pinta el fondo con `body:has(...)`, que necesita iOS 15.4 o más. Si el iPhone de la prueba del silencio es más viejo, la pantalla no se verá verde.
+- El silencio del iPhone y el modo avión siguen sin probarse (TK-2 y TK-1): necesitan el celular de Hugo.
+
+### Cierre
+
+Commit sugerido:
+
+```text
+feat(002): aviso de pago con sonido, vibración y respaldo del canal (F4)
+```

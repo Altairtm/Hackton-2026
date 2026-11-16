@@ -17,7 +17,7 @@ function asegurar() {
     return;
   }
   listas = true;
-  raiz.append(crear_teclado(), crear_generando(), crear_qr());
+  raiz.append(crear_teclado(), crear_generando(), crear_qr(), crear_pagado());
 }
 
 /**
@@ -122,6 +122,44 @@ function crear_qr() {
 }
 
 /**
+ * @returns {HTMLElement}
+ */
+function crear_pagado() {
+  const vista = document.createElement("section");
+  vista.setAttribute("data-prueba", "vista-pagado");
+  vista.hidden = true;
+
+  const titulo = document.createElement("p");
+  titulo.setAttribute("data-prueba", "pagado");
+  titulo.textContent = "Pago recibido";
+
+  const monto = document.createElement("p");
+  monto.setAttribute("data-prueba", "pagado-monto");
+
+  const concepto = document.createElement("p");
+  concepto.setAttribute("data-prueba", "pagado-concepto");
+
+  const distinto = document.createElement("p");
+  distinto.setAttribute("data-prueba", "pagado-distinto");
+  distinto.hidden = true;
+
+  vista.append(titulo, monto, concepto, distinto);
+  return vista;
+}
+
+/**
+ * @param {number | string | null | undefined} valor
+ * @returns {string}
+ */
+function pesos(valor) {
+  const numero = Number(valor);
+  if (!Number.isFinite(numero)) {
+    return "";
+  }
+  return `$${numero.toFixed(2)}`;
+}
+
+/**
  * @param {string} nombre
  */
 function mostrar_solo(nombre) {
@@ -130,10 +168,14 @@ function mostrar_solo(nombre) {
     return;
   }
   for (const nodo of raiz.children) {
-    if (!(nodo instanceof HTMLElement) || !nodo.hasAttribute("data-prueba")) {
+    if (!(nodo instanceof HTMLElement)) {
       continue;
     }
-    nodo.hidden = nodo.getAttribute("data-prueba") !== nombre;
+    const prueba = nodo.getAttribute("data-prueba") ?? "";
+    if (!prueba.startsWith("vista-")) {
+      continue;
+    }
+    nodo.hidden = prueba !== nombre;
   }
 }
 
@@ -215,4 +257,58 @@ export function mostrar_qr(datos) {
     cuenta.textContent = datos.cuenta ?? "";
   }
   mostrar_solo("vista-qr");
+}
+
+/**
+ * Pinta Pago recibido solo con texto (spec 002, RF-023, RF-026, RF-028, RF-077).
+ *
+ * @param {{ monto_recibido?: number, concepto?: string, monto_pedido?: number | null, monto_distinto?: boolean }} datos
+ * @returns {void}
+ */
+export function mostrar_pagado(datos) {
+  asegurar();
+  const titulo = document.querySelector('[data-prueba="pagado"]');
+  if (titulo) {
+    titulo.textContent = "Pago recibido";
+  }
+  const monto = document.querySelector('[data-prueba="pagado-monto"]');
+  if (monto) {
+    monto.textContent = pesos(datos.monto_recibido);
+  }
+  const concepto = document.querySelector('[data-prueba="pagado-concepto"]');
+  if (concepto) {
+    concepto.textContent = datos.concepto ?? "";
+  }
+  const distinto = document.querySelector('[data-prueba="pagado-distinto"]');
+  if (distinto) {
+    if (datos.monto_distinto) {
+      distinto.hidden = false;
+      distinto.textContent = `Pediste ${pesos(datos.monto_pedido)}, recibiste ${pesos(datos.monto_recibido)}`;
+    } else {
+      distinto.hidden = true;
+      distinto.textContent = "";
+    }
+  }
+  mostrar_solo("vista-pagado");
+}
+
+/**
+ * Aviso encima de la vista del cobro en pantalla (spec 002, RF-032).
+ *
+ * @param {boolean} visible
+ * @returns {void}
+ */
+export function mostrar_reconectando(visible) {
+  const raiz = document.getElementById("vistas");
+  if (!raiz) {
+    return;
+  }
+  let aviso = raiz.querySelector('[data-prueba="reconectando"]');
+  if (!(aviso instanceof HTMLElement)) {
+    aviso = document.createElement("p");
+    aviso.setAttribute("data-prueba", "reconectando");
+    raiz.append(aviso);
+  }
+  aviso.textContent = "Reconectando…";
+  aviso.hidden = !visible;
 }

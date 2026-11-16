@@ -344,7 +344,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
 
 ### Pruebas de las historias 3 y 4 (primero, deben fallar antes de implementar)
 
-- [ ] T029 [P] [US3] Escribir las pruebas del aviso de pago en `web/tests/test_pago_recibido.py`
+- [X] T029 [P] [US3] Escribir las pruebas del aviso de pago en `web/tests/test_pago_recibido.py`
   - `test_al_mostrar_el_qr_se_abre_el_canal_del_cobro`: `GET /api/cobros/{id}/eventos` aparece en `peticiones` después de la vista QR.
   - `test_un_pago_suena_vibra_y_pone_la_pantalla_verde_sin_tocar_nada_despues_de_cobrar` (escenarios 1 y 2, CE-002): sin otro toque después de Cobrar, antes del evento no hay `vista-pagado`; `agregar_pago(id, 25.5)` → `vista-pagado` con `pagado` = "Pago recibido", `pagado-monto` = "$25.50" y `pagado-concepto` = "Tacos"; `sonidos` = 1; `vibraciones` = 1 en Chromium. El tiempo entre `agregar_pago` y la vista, medido con `time.perf_counter()` de Python, es menor a 2 s (QP-4).
   - `test_pago_recibido_se_queda_varios_minutos` (escenario 3): con `reloj(pagina, hora)`, `run_for(5 * 60_000)` y la vista sigue en Pago recibido.
@@ -357,7 +357,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **RF**: RF-020, RF-021, RF-022, RF-023, RF-024, RF-025, RF-026, RF-028, RF-029, RF-058, RF-060, RF-061, RF-077
   - **Dep.**: T028
   - **Hecho cuando**: las pruebas existen y fallan porque no hay escucha.
-- [ ] T030 [P] [US4] Escribir las pruebas del respaldo en `web/tests/test_respaldo.py`
+- [X] T030 [P] [US4] Escribir las pruebas del respaldo en `web/tests/test_respaldo.py`
   - `test_con_el_canal_cortado_la_consulta_cada_3_segundos_avisa_el_pago` (escenario 1, CE-003): con `reloj(pagina, hora)`, `cortar_canal(id, rechazar_con=503)` y se ve `reconectando`; `agregar_pago(id, 25.5, avisar=False)`; `run_for(3_000)` → `vista-pagado` y `sonidos` = 1. El tiempo real desde el pago, medido con Python, es menor a 3 s, así que el total queda por debajo de 6 s.
   - `test_mientras_el_canal_esta_cortado_se_ve_reconectando_sin_quitar_el_qr` (escenario 3): `reconectando` = "Reconectando…" y `qr` sigue visible.
   - `test_al_volver_el_canal_se_deja_de_consultar_y_se_quita_reconectando` (escenario 2, QT-2): con `reloj(pagina, hora)`, `cortar_canal(id, rechazar_con=503)`; la pantalla consulta cada 3 s; `permitir_canal(id)` y `run_for(15_000)` → `canales(pagina)` muestra un canal nuevo `OPEN`, `reconectando` desaparece y, tras `run_for(9_000)`, no hay más `GET /api/cobros/{id}` en `peticiones`.
@@ -369,27 +369,27 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
 
 ### Implementación de las historias 3 y 4
 
-- [ ] T031 [US3] Implementar `Escucha` (canal y eventos `estado` y `pago`) y `Escuchas` (cobro en pantalla) en `web/js/escucha.js` (archivo nuevo)
+- [X] T031 [US3] Implementar `Escucha` (canal y eventos `estado` y `pago`) y `Escuchas` (cobro en pantalla) en `web/js/escucha.js` (archivo nuevo)
   - `Escucha(id, cobro, con_canal)`: abre `EventSource(servidor + "/api/cobros/" + id + "/eventos")`; en `estado` y `pago` actualiza `cobro` y `desfase` y lo entrega a `Escuchas`. Campos de data-model §2 (`canal` en `abriendo` o `abierto`).
   - `Escuchas`: guarda las escuchas y un `Avisados`. Con cada cobro recibido, `avisados.nuevos(cobro)`; por cada pago nuevo del cobro en pantalla, `sonar()`, `vibrar()` y vista Pago recibido con ese pago (solo lo que trae el servidor, RF-021). En el corte 1 solo existe la escucha del cobro en pantalla. Pide `mantener_encendida(true)` al empezar la primera escucha.
   - Deja en la consola los cambios de la escucha (abierto, cortado, consulta, `fin`) con el id del cobro y sin datos bancarios (principio X).
   - **RF**: RF-020, RF-021, RF-022, RF-023, RF-024, RF-029, RF-058
   - **Dep.**: T029
   - **Hecho cuando**: las pruebas de T029 sobre el canal, el pago, el segundo pago y la pantalla encendida pasan (la de CE-008 pasa con T033, porque usa el reintento).
-- [ ] T032 [US3] Implementar la vista Pago recibido en `web/js/vistas.js` y `web/estilos.css`, y empezar la escucha desde `web/js/app.js`
+- [X] T032 [US3] Implementar la vista Pago recibido en `web/js/vistas.js` y `web/estilos.css`, y empezar la escucha desde `web/js/app.js`
   - `vista-pagado` a pantalla completa en verde con `pagado`, `pagado-monto` (monto recibido del último pago), `pagado-concepto` y `pagado-distinto` solo si el pago trae `monto_distinto` (monto pedido y recibido). La vista solo cambia con Nuevo cobro (F5) o con otro pago.
   - `app.js`: al mostrar la vista QR empieza la escucha del cobro en pantalla.
   - **RF**: RF-020, RF-023, RF-026, RF-028, RF-077
   - **Dep.**: T031
   - **Hecho cuando**: todas las pruebas de T029 pasan en los dos celulares.
-- [ ] T033 [US4] Implementar el respaldo de `Escucha` en `web/js/escucha.js` y el aviso "Reconectando…" en `web/js/vistas.js`
+- [X] T033 [US4] Implementar el respaldo de `Escucha` en `web/js/escucha.js` y el aviso "Reconectando…" en `web/js/vistas.js`
   - En `error`: `canal = "cortado"`, consulta con `ver_cobro` cada 3 s (`setTimeout`), aviso `reconectando` si es el cobro en pantalla. Cada consulta con `{ cobro }` se trata igual que un evento (RF-033); con `{ sin_conexion }` se reintenta en 3 s.
   - En `open`: `canal = "abierto"`, se detiene la consulta y se quita el aviso.
   - Si el `EventSource` queda `CLOSED` y la consulta da 200, se intenta abrir otro cada 15 s (R-5, DP-9).
   - **RF**: RF-030, RF-031, RF-032, RF-033, RF-034
   - **Dep.**: T030, T032
   - **Hecho cuando**: todas las pruebas de T030 y de T029 pasan, incluida la de CE-008.
-- [ ] T034 [US4] Cierre de F4: pruebas en verde, sección F4 en `verification-guide.md`, prueba del silencio en el iPhone y commit sugerido
+- [X] T034 [US4] Cierre de F4: pruebas en verde, sección F4 en `verification-guide.md`, prueba del silencio en el iPhone y commit sugerido
   - Reconexión automática del navegador (QT-2), a mano: con un cobro en la vista QR, activar y quitar el modo avión del celular; esperado: aparece y desaparece "Reconectando…" y un pago posterior se avisa.
   - Con la web servida en la red local (quickstart §3 con la IP de la Mac en lugar de `localhost`) y un cobro del servidor simulado o de $0.01 real con autorización de Hugo: poner el iPhone en silencio, provocar un pago y anotar si suena como TK en el plan §14 (riesgo R-7).
   - Commit sugerido: `feat(002): aviso de pago con sonido, vibración y respaldo del canal (F4)`.

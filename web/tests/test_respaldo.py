@@ -1,13 +1,15 @@
-"""ver_cobro contra el servidor simulado (spec 002, T013)."""
+"""ver_cobro y el respaldo del canal (spec 002, T013, T030)."""
 
 from __future__ import annotations
 
 import json
+import time
 import urllib.request
+from collections.abc import Callable
 
 import pytest
-from conftest import abrir
-from playwright.sync_api import Page, Route
+from conftest import abrir, canales, reloj, sonidos, tocar
+from playwright.sync_api import Page, Route, expect
 from servidor_simulado import ServidorSimulado
 
 
@@ -77,3 +79,161 @@ def test_ver_cobro_con_fallo_de_red_dice_sin_conexion(
         cobro["id"],
     )
     assert resultado == {"sin_conexion": True}
+
+
+_HORA = 1_700_000_000
+
+
+def _teclear(pagina: Page, monto: str) -> None:
+    nombres = ["tecla-punto" if caracter == "." else f"tecla-{caracter}" for caracter in monto]
+    tocar(pagina, *nombres)
+
+
+def _ultimo_id(servidor: ServidorSimulado) -> str:
+    ids = list(servidor.cobros)
+    assert ids
+    return str(ids[-1])
+
+
+def _cobrar(pagina: Page, servidor: ServidorSimulado) -> str:
+    _teclear(pagina, "25.50")
+    pagina.locator('[data-prueba="concepto"]').fill("Tacos")
+    tocar(pagina, "cobrar")
+    expect(pagina.locator('[data-prueba="vista-qr"]')).to_be_visible()
+    return _ultimo_id(servidor)
+
+
+def _consultas(servidor: ServidorSimulado, id_cobro: str) -> list[str]:
+    ruta = f"/api/cobros/{id_cobro}"
+    return [
+        pedido
+        for metodo, pedido, _cuerpo in servidor.peticiones
+        if metodo == "GET" and pedido == ruta
+    ]
+
+
+def _esperar_cerrado(pagina: Page, id_cobro: str) -> None:
+    pagina.wait_for_function(
+        """(id) => window.__canales.some((canal) => {
+          return canal.url.includes(id) && canal.readyState === 2;
+        })""",
+        arg=id_cobro,
+        timeout=8_000,
+    )
+
+
+def _abortar_consulta(id_cobro: str) -> Callable[[Route], None]:
+    """Corta solo la consulta del cobro. El canal de eventos sigue su camino."""
+
+    def manejar(ruta: Route) -> None:
+        camino = ruta.request.url.split("?", 1)[0].rstrip("/")
+        if camino.endswith(f"/api/cobros/{id_cobro}"):
+            ruta.abort()
+            return
+        ruta.fallback()
+
+    return manejar
+
+
+def test_con_el_canal_cortado_la_consulta_cada_3_segundos_avisa_el_pago(
+    pagina: Page, servidor: ServidorSimulado
+) -> None:
+    """Con el canal cortado, la consulta de los 3 s avisa el pago (spec 002, RF-030, CE-003)."""
+    reloj(pagina, _HORA)
+    abrir(pagina, servidor)
+    id_cobro = _cobrar(pagina, servidor)
+    servidor.cortar_canal(id_cobro, rechazar_con=503)
+    expect(pagina.locator('[data-prueba="reconectando"]')).to_have_text("Reconectando…")
+    inicio = time.perf_counter()
+    servidor.agregar_pago(id_cobro, 25.5, avisar=False)
+    pagina.clock.run_for(3_000)
+    expect(pagina.locator('[data-prueba="vista-pagado"]')).to_be_visible()
+    assert time.perf_counter() - inicio < 3
+    assert sonidos(pagina) == 1
+
+
+def test_mientras_el_canal_esta_cortado_se_ve_reconectando_sin_quitar_el_qr(
+    pagina: Page, servidor: ServidorSimulado
+) -> None:
+    """Reconectando no tapa el QR (spec 002, RF-032)."""
+    abrir(pagina, servidor)
+    id_cobro = _cobrar(pagina, servidor)
+    servidor.cortar_canal(id_cobro, rechazar_con=503)
+    expect(pagina.locator('[data-prueba="reconectando"]')).to_have_text("Reconectando…")
+    expect(pagina.locator('[data-prueba="qr"]')).to_be_visible()
+
+
+def test_al_volver_el_canal_se_deja_de_consultar_y_se_quita_reconectando(
+    pagina: Page, servidor: ServidorSimulado
+) -> None:
+    """Al abrirse de nuevo el canal se quita el aviso y la consulta (spec 002, RF-031)."""
+    reloj(pagina, _HORA)
+    abrir(pagina, servidor)
+    id_cobro = _cobrar(pagina, servidor)
+    servidor.cortar_canal(id_cobro, rechazar_con=503)
+    expect(pagina.locator('[data-prueba="reconectando"]')).to_be_visible()
+    pagina.clock.run_for(3_000)
+    assert _consultas(servidor, id_cobro)
+    _esperar_cerrado(pagina, id_cobro)
+    servidor.permitir_canal(id_cobro)
+    pagina.clock.run_for(15_000)
+    pagina.wait_for_function(
+        """(id) => window.__canales.some((canal) => {
+          return canal.url.includes(id) && canal.readyState === 1;
+        })""",
+        arg=id_cobro,
+        timeout=5_000,
+    )
+    expect(pagina.locator('[data-prueba="reconectando"]')).to_be_hidden()
+    hechas = len(_consultas(servidor, id_cobro))
+    pagina.clock.run_for(9_000)
+    assert len(_consultas(servidor, id_cobro)) == hechas
+    assert any(canal["estado"] == "OPEN" for canal in canales(pagina))
+
+
+def test_si_el_servidor_rechaza_el_canal_se_sigue_con_la_consulta(
+    pagina: Page, servidor: ServidorSimulado
+) -> None:
+    """Un canal rechazado se sigue por consulta y se reintenta a los 15 s (spec 002, RF-034)."""
+    reloj(pagina, _HORA)
+    abrir(pagina, servidor)
+    id_cobro = _cobrar(pagina, servidor)
+    servidor.cortar_canal(id_cobro, rechazar_con=429)
+    expect(pagina.locator('[data-prueba="reconectando"]')).to_be_visible()
+    pagina.clock.run_for(3_000)
+    primeras = len(_consultas(servidor, id_cobro))
+    assert primeras >= 1
+    pagina.clock.run_for(3_000)
+    assert len(_consultas(servidor, id_cobro)) > primeras
+    _esperar_cerrado(pagina, id_cobro)
+    servidor.permitir_canal(id_cobro)
+    pagina.clock.run_for(15_000)
+    ruta = f"/api/cobros/{id_cobro}/eventos"
+    repeticiones = [
+        pedido
+        for metodo, pedido, _cuerpo in servidor.peticiones
+        if metodo == "GET" and pedido == ruta
+    ]
+    assert len(repeticiones) >= 2
+
+
+def test_si_la_consulta_falla_por_red_se_reintenta_en_3_segundos(
+    pagina: Page, servidor: ServidorSimulado
+) -> None:
+    """Si la consulta se corta, Reconectando sigue y se reintenta a los 3 s (spec 002, RF-032)."""
+    reloj(pagina, _HORA)
+    abrir(pagina, servidor)
+    id_cobro = _cobrar(pagina, servidor)
+    pedidas: list[str] = []
+    pagina.on("request", lambda peticion: pedidas.append(peticion.url))
+    pagina.route("**/api/cobros/**", _abortar_consulta(id_cobro))
+    servidor.cortar_canal(id_cobro, rechazar_con=503)
+    expect(pagina.locator('[data-prueba="reconectando"]')).to_have_text("Reconectando…")
+    pagina.clock.run_for(3_000)
+    pagina.clock.run_for(3_000)
+
+    def es_consulta(url: str) -> bool:
+        return url.split("?", 1)[0].rstrip("/").endswith(f"/api/cobros/{id_cobro}")
+
+    assert sum(1 for url in pedidas if es_consulta(url)) >= 2
+    expect(pagina.locator('[data-prueba="reconectando"]')).to_have_text("Reconectando…")

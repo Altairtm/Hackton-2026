@@ -417,3 +417,4 @@ No hay excepciones.
 | # | Fecha | Qué | Por qué | Afecta |
 |---|---|---|---|---|
 | TK-1 | 2026-11-15 | Las pruebas de reconexión ya no esperan en tiempo real a que el navegador reconecte el `EventSource`: el simulado rechaza el canal y la reconexión se hace con el reintento propio de 15 s, con reloj controlado. La reconexión automática del navegador se comprueba a mano en la guía de F4 | QT-2 de tasks: la constitución (principio V) prohíbe que las pruebas dependan del reloj real | §7, R-1 (QP-4), T029, T030 y T034 de tasks |
+| TK-2 | 2026-11-15 | El silencio del iPhone (R-7) no se pudo comprobar en esta sesión: hace falta el iPhone de Hugo, con la web en la red local y un pago provocado. No queda anotado si suena o no. Los pasos están en la guía de F4 | T034 pide el resultado y aquí no hay un iPhone | R-7, T034, guía F4 |

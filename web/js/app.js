@@ -1,8 +1,15 @@
 import { desfase, formato, restante } from "./cuenta.js";
+import { Escuchas } from "./escucha.js";
 import { desbloquear } from "./sonido.js";
 import { crear_cobro } from "./servidor.js";
 import { aplicar_tecla } from "./teclado.js";
-import { mostrar_generando, mostrar_qr, mostrar_teclado } from "./vistas.js";
+import {
+  mostrar_generando,
+  mostrar_pagado,
+  mostrar_qr,
+  mostrar_reconectando,
+  mostrar_teclado,
+} from "./vistas.js";
 
 const servidor = window.PAGO_FACIL.servidor;
 
@@ -19,6 +26,22 @@ const estado = {
 
 /** @type {number} */
 let cuenta_id = 0;
+
+const escuchas = new Escuchas({
+  pagado(pago, cobro) {
+    parar_cuenta();
+    estado.vista = "pago_recibido";
+    mostrar_pagado({
+      monto_recibido: pago.monto_recibido,
+      concepto: typeof cobro.concepto === "string" ? cobro.concepto : "",
+      monto_pedido: cobro.monto,
+      monto_distinto: Boolean(pago.monto_distinto),
+    });
+  },
+  reconectando(visible) {
+    mostrar_reconectando(visible);
+  },
+});
 
 mostrar_teclado(estado);
 conectar();
@@ -85,6 +108,7 @@ async function al_cobrar() {
     estado.en_pantalla = resultado.cobro.id;
     estado.vista = "qr";
     empezar_cuenta(resultado.cobro);
+    escuchas.poner_en_pantalla(resultado.cobro);
     return;
   }
   estado.mensaje = resultado.mensaje ?? "";
