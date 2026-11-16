@@ -150,6 +150,7 @@ class ServidorSimulado:
         self._hora = int(time.time())
         self._guardados: dict[str, _Cobro] = {}
         self._programa: _Programa | None = None
+        self._demora_cancelar = 0.0
         self._config_js: str | None = None
         self._rechazos: dict[str, int] = {}
         self._suscriptores: dict[str, list[asyncio.Queue[_Mensaje]]] = {}
@@ -214,6 +215,7 @@ class ServidorSimulado:
             self._guardados.clear()
             self.peticiones.clear()
             self._programa = None
+            self._demora_cancelar = 0.0
             self._config_js = None
             self._rechazos.clear()
             self._hora = int(time.time())
@@ -254,6 +256,11 @@ class ServidorSimulado:
         with self._candado:
             cobro = self._desde_dict(datos)
             return self._publico(cobro, None if hora_servidor is None else int(hora_servidor))
+
+    def demorar_cancelar(self, segundos: float) -> None:
+        """El próximo POST …/cancelar espera antes de responder (spec 002, T050)."""
+        with self._candado:
+            self._demora_cancelar = float(segundos)
 
     def responder_crear(
         self,
@@ -381,8 +388,14 @@ class ServidorSimulado:
                 return JSONResponse(self._publico(cobro))
 
         @api.post("/api/cobros/{cobro_id}/cancelar")
-        async def cancelar_cobro(cobro_id: str) -> JSONResponse:
+        async def cancelar_cobro(cobro_id: str, request: Request) -> Response:
             """Cancela un cobro pendiente y avisa por el canal (spec 001, RF-023)."""
+            await request.body()
+            with self._candado:
+                demora = self._demora_cancelar
+                self._demora_cancelar = 0.0
+            if demora > 0 and not await self._seguir_conectado(request, demora):
+                return Response(status_code=499)
             with self._candado:
                 cobro = self._guardados.get(cobro_id)
                 if cobro is None:

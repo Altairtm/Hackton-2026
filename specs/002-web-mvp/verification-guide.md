@@ -366,3 +366,52 @@ Si se separan, el de F6 es:
 ```text
 feat(002): monto libre, número de pago y mostrar el QR otra vez (F6)
 ```
+
+## F7 Cobros anteriores y Cancelar cobro
+
+Fecha: 2026-11-15. Nuevo cobro deja el cobro como anterior y lo sigue escuchando hasta el fin de su ventana. Un pago a ese cobro suena, vibra en Chromium y muestra un aviso con el monto y el concepto, sin borrar lo que se está tecleando; el aviso se cierra al tocarlo. Hay como máximo 3 canales: el cobro en pantalla y los dos anteriores más recientes. El resto se consulta cada 3 segundos, y al cerrarse un canal el siguiente más reciente abre el suyo. La pantalla sigue encendida mientras quede cualquier escucha.
+
+Cancelar cobro aparece en el QR de un cobro pendiente. Mientras el servidor responde, el botón dice "Cancelando…" y un segundo toque no repite el pedido. Si el servidor confirma, vuelve el teclado vacío y el cobro se sigue escuchando: un pago posterior suena y muestra el aviso. Si rechaza (404, 409 o sin conexión), el QR se queda con el mensaje. Un `cancelado` que llega por el canal, sin que esta pantalla lo haya pedido, hace lo mismo que una cancelación confirmada.
+
+Se quitó `test_en_el_corte_1_nuevo_cobro_deja_de_escuchar_el_cobro`: en el corte 2 Nuevo cobro ya no corta la escucha. La prueba de soltar la pantalla, tras Nuevo cobro, espera el `fin` del cobro anterior.
+
+### Verlo en local
+
+Hace falta el servidor simulado o el servidor real. Con el simulado, las pruebas de `web/tests/test_cobros_anteriores.py` recorren los dos flujos. A mano, con la web y el servidor en marcha:
+
+1. Crea un cobro, por ejemplo $30 "Refresco", pulsa Nuevo cobro y teclea otro monto. Paga el QR anterior. **Esperado**: suena, aparece el aviso de $30.00 y "Refresco", y el monto tecleado sigue ahí. Al tocar el aviso, se cierra.
+2. Crea otro cobro y pulsa Cancelar cobro. **Esperado**: un momento "Cancelando…" y después el teclado vacío. El QR sigue pagable: al pagarlo, suena y aparece el aviso.
+
+Los pagos reales de $0.01 (quickstart §7, "Cobro anterior" y "Cancelar") quedan pendientes: hace falta tu autorización. No se hicieron en esta sesión.
+
+### Comandos
+
+```bash
+uv run --directory backend pytest ../web -q
+uv run --directory backend ruff check --config pyproject.toml ../web
+uv run --directory backend ruff format --config pyproject.toml --check ../web
+uv run --directory backend pytest -q
+uv run --directory backend ruff check .
+uv run --directory backend ruff format --check .
+```
+
+La web: **206 passed, 29 skipped**. El backend: **109 passed**. Ruff, en los dos, limpio. Los 29 saltos son las pruebas marcadas `only_browser("chromium")` cuando les toca WebKit. El aviso de pytest-playwright sobre `base_url` sigue igual que en F1, y el de Starlette sobre `TestClient` igual que en la 001.
+
+### Revisión de Claude de F7 (2026-11-15)
+
+Claude revisó el diff de `escucha.js` (`tomar_canal`, `soltar_canal`, `_repartir`, `cancelado`), `app.js` (`al_cancelar`, `volver_al_teclado`, `pintar_qr_actual`), `vistas.js`, el simulado y las pruebas de `test_cobros_anteriores.py`. El reparto de 3 canales coincide con QP-1 y con data-model §2, y las 14 pruebas nuevas cubren los escenarios de T049 y T050. Ninguna fallaba.
+
+- **Corregido: el aviso del cobro anterior quedaba fuera de la pantalla.** Se anexaba al final de la página sin estilo. A 320×568, en la vista verde «Pago recibido», su borde superior caía en 584 px, con la pantalla en 568: el dueño no lo veía sin desplazarse. Ahora es una franja fija arriba, encima de cualquier vista (`web/estilos.css`). La prueba `test_el_aviso_de_un_cobro_anterior_se_ve_sin_desplazar_la_pantalla_y_dice_que_es` se vio fallar antes del arreglo.
+- **Corregido: el aviso sin rótulo.** Decía solo «$30.00 Refresco». Ahora dice `Pago de un cobro anterior: $30.00 Refresco` (mismo tipo de fallo que el rótulo de monto distinto de F4 y el del total de F6). Cambio en `web/js/vistas.js`.
+- **Comprobado a mano, contra el simulado, a 320 px:** con el teclado, un pago al cobro anterior deja el aviso arriba sin borrar el "$12" tecleado; en la vista QR y en «Pago recibido» el aviso queda a la vista; un concepto de 40 caracteres se envuelve en dos líneas.
+- **Pendiente para F8:** si dos cobros anteriores se pagan seguidos, el segundo aviso reemplaza al primero (un solo elemento `aviso-anterior`). Los dos suenan, pero solo queda visible el último. RF-075 pide un aviso por cada pago recuperado, así que F8 tendrá que acumularlos; conviene decidirlo entonces.
+- **Resultados:** web **208 passed, 29 skipped** (107 s); backend **109 passed**; `ruff check` y `ruff format --check` limpios en web y backend.
+- **No se probó:** los pagos reales de $0.01 (quickstart §7, «Cobro anterior» y «Cancelar»).
+
+### Cierre
+
+Commit sugerido:
+
+```text
+feat(002): escuchar cobros anteriores y cancelar un cobro (F7)
+```

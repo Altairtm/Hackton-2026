@@ -3,7 +3,7 @@
 - **Spec**: [spec.md](spec.md), estado: Aprobada el 2026-11-15, con el cambio C-3 aplicado (RF-078)
 - **Plan**: [plan.md](plan.md), estado: Aprobado el 2026-11-15 (DP-1 a DP-17, QP-1 a QP-5)
 - **Fecha**: 2026-11-15
-- **Estado**: `F2 terminada (2026-11-15)`. F1 terminada el 2026-11-15 (Hugo la revisó). Hugo pidió implementar F2 el 2026-11-15. El C-2 a la spec 001 (F0) quedó aplicado el 2026-11-15 con el campo `hora_servidor`.
+- **Estado**: `F7 terminada (Grok, 2026-11-15)`. F6 terminada el 2026-11-15. F1 terminada el 2026-11-15 (Hugo la revisó). El C-2 a la spec 001 (F0) quedó aplicado el 2026-11-15 con el campo `hora_servidor`.
 - **Entrada**: los documentos de `specs/002-web-mvp/`: plan.md, spec.md, research.md, data-model.md, contracts/ y quickstart.md
 
 > **Notas para los comandos de spec-kit.**
@@ -543,7 +543,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
 
 ### Pruebas (primero, deben fallar antes de implementar)
 
-- [ ] T049 [US6] Escribir las pruebas de cobros anteriores en `web/tests/test_cobros_anteriores.py` y quitar `test_en_el_corte_1_nuevo_cobro_deja_de_escuchar_el_cobro` de `web/tests/test_vencido_y_nuevo.py`
+- [X] T049 [US6] Escribir las pruebas de cobros anteriores en `web/tests/test_cobros_anteriores.py` y quitar `test_en_el_corte_1_nuevo_cobro_deja_de_escuchar_el_cobro` de `web/tests/test_vencido_y_nuevo.py`
   - `test_un_pago_a_un_cobro_anterior_suena_y_avisa_sin_borrar_lo_tecleado` (escenario 2, CE-013): cobro de $30 "Refresco", Nuevo cobro, teclear "12"; `agregar_pago` al anterior → `sonidos` = 1, vibra en Chromium, `aviso-anterior` con "$30.00" y "Refresco", y `monto` sigue en "$12".
   - `test_el_aviso_de_un_cobro_anterior_se_cierra_al_tocarlo` (spec §7, [vistas](contracts/vistas.md)).
   - `test_un_cobro_anterior_deja_de_escucharse_al_terminar_su_ventana` (escenario 3): `fin` del anterior → `canales(pagina)` muestra su canal `CLOSED`.
@@ -555,7 +555,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **RF**: RF-024, RF-030, RF-040, RF-043, RF-044, RF-045, RF-056, RF-058, RF-059
   - **Dep.**: T048
   - **Hecho cuando**: las pruebas existen y fallan porque Nuevo cobro termina la escucha.
-- [ ] T050 [US7] Escribir las pruebas de Cancelar cobro en `web/tests/test_cobros_anteriores.py`
+- [X] T050 [US7] Escribir las pruebas de Cancelar cobro en `web/tests/test_cobros_anteriores.py`
   - `test_cancelar_cobro_solo_aparece_con_el_cobro_pendiente`: visible en la vista QR de un cobro *pendiente*; no aparece con el QR reabierto de un cobro *pagado*.
   - `test_cancelar_un_cobro_pendiente_vuelve_al_teclado_y_lo_sigue_escuchando` (escenario 1): `POST /api/cobros/{id}/cancelar` en `peticiones`; vista Teclado vacía; el cobro sigue con canal.
   - `test_un_pago_a_un_cobro_cancelado_suena_y_avisa` (escenario 2): `agregar_pago` al cancelado → `sonidos` = 1 y `aviso-anterior`.
@@ -568,7 +568,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
 
 ### Implementación
 
-- [ ] T051 [US6] Implementar los cobros anteriores y el reparto de canales en `web/js/escucha.js`, el aviso de cobro anterior en `web/js/vistas.js` y Nuevo cobro del corte 2 en `web/js/app.js`
+- [X] T051 [US6] Implementar los cobros anteriores y el reparto de canales en `web/js/escucha.js`, el aviso de cobro anterior en `web/js/vistas.js` y Nuevo cobro del corte 2 en `web/js/app.js`
   - Nuevo cobro deja la escucha con `es_anterior = true` en lugar de terminarla (RF-043).
   - `Escuchas` reparte como máximo 3 canales: el del cobro en pantalla y los de los dos anteriores más recientes; los demás empiezan en `sin_canal` con la consulta cada 3 s; al terminar una escucha con canal, el siguiente más reciente pasa a `abriendo` (QP-1, data-model §2).
   - Un pago nuevo de un anterior: `sonar()`, `vibrar()` y `aviso-anterior` con el monto recibido y el concepto, encima de la vista actual y sin tocar el estado del teclado; se cierra al tocarlo.
@@ -577,13 +577,13 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **RF**: RF-024, RF-030, RF-040, RF-043, RF-044, RF-045, RF-056, RF-058, RF-059, RF-077
   - **Dep.**: T049
   - **Hecho cuando**: las pruebas de T049 pasan en los dos celulares.
-- [ ] T052 [US7] Implementar Cancelar cobro en `web/js/vistas.js` y `web/js/app.js`, y el evento `cancelado` en `web/js/escucha.js`
+- [X] T052 [US7] Implementar Cancelar cobro en `web/js/vistas.js` y `web/js/app.js`, y el evento `cancelado` en `web/js/escucha.js`
   - `cancelar` en la vista QR solo con el cobro *pendiente*. Al tocarlo con `accion_en_curso` vacía: `accion_en_curso = "cancelando"`, el botón dice "Cancelando…" y no responde; `cancelar_cobro`. Con `{ cobro }`: el cobro pasa a anterior y vista Teclado vacía. Con `{ mensaje }`: sigue la vista QR con `mensaje-cancelar`. `accion_en_curso` vuelve a vacía.
   - `Escucha`: un `cancelado` del cobro en pantalla, sin cancelación propia en curso, hace lo mismo que una cancelación propia confirmada (RF-074).
   - **RF**: RF-046, RF-047, RF-048, RF-049, RF-050, RF-072, RF-073, RF-074
   - **Dep.**: T050, T051
   - **Hecho cuando**: las pruebas de T050 pasan y todas las anteriores siguen en verde.
-- [ ] T053 [US7] Cierre de F7: pruebas en verde, sección F7 en `verification-guide.md`, pago real a un QR cancelado y commit sugerido
+- [X] T053 [US7] Cierre de F7: pruebas en verde, sección F7 en `verification-guide.md`, pago real a un QR cancelado y commit sugerido
   - Con autorización de Hugo: quickstart §7, "Cobro anterior" y "Cancelar", con pagos reales de $0.01.
   - Commit sugerido: `feat(002): escuchar cobros anteriores y cancelar un cobro (F7)`.
   - **RF**: RF-044, RF-049

@@ -133,7 +133,26 @@ function crear_qr() {
   const cuenta = document.createElement("p");
   cuenta.setAttribute("data-prueba", "cuenta");
 
-  vista.append(imagen, monto, concepto, indicacion, cuenta, crear_nuevo_cobro());
+  const cancelar = document.createElement("button");
+  cancelar.type = "button";
+  cancelar.setAttribute("data-prueba", "cancelar");
+  cancelar.textContent = "Cancelar cobro";
+  cancelar.hidden = true;
+
+  const mensaje = document.createElement("p");
+  mensaje.setAttribute("data-prueba", "mensaje-cancelar");
+  mensaje.hidden = true;
+
+  vista.append(
+    imagen,
+    monto,
+    concepto,
+    indicacion,
+    cuenta,
+    cancelar,
+    mensaje,
+    crear_nuevo_cobro(),
+  );
   return vista;
 }
 
@@ -321,7 +340,15 @@ export function mostrar_generando(_estado) {
  * Pinta la vista QR. La imagen solo usa el prefijo data de un PNG
  * (spec 002, RF-015, RF-016, RF-017, RF-018, RF-077).
  *
- * @param {{ qr_imagen?: string, monto?: number | null, concepto?: string, cuenta?: string }} datos
+ * @param {{
+ *   qr_imagen?: string,
+ *   monto?: number | null,
+ *   concepto?: string,
+ *   cuenta?: string,
+ *   pendiente?: boolean,
+ *   cancelando?: boolean,
+ *   mensaje_cancelar?: string,
+ * }} datos
  * @returns {void}
  */
 export function mostrar_qr(datos) {
@@ -348,6 +375,17 @@ export function mostrar_qr(datos) {
   const cuenta = document.querySelector('[data-prueba="cuenta"]');
   if (cuenta) {
     cuenta.textContent = datos.cuenta ?? "";
+  }
+  const cancelar = document.querySelector('[data-prueba="cancelar"]');
+  if (cancelar instanceof HTMLButtonElement) {
+    cancelar.hidden = !datos.pendiente;
+    cancelar.textContent = datos.cancelando ? "Cancelando…" : "Cancelar cobro";
+  }
+  const mensaje = document.querySelector('[data-prueba="mensaje-cancelar"]');
+  if (mensaje) {
+    const texto = datos.mensaje_cancelar ?? "";
+    mensaje.textContent = texto;
+    mensaje.hidden = texto === "";
   }
   mostrar_solo("vista-qr");
 }
@@ -474,6 +512,34 @@ export function mostrar_error() {
     texto.textContent = TEXTO_ERROR;
   }
   mostrar_solo("vista-error");
+}
+
+/**
+ * Aviso de un pago de un cobro anterior, encima de la vista actual
+ * (spec 002, RF-045, RF-077).
+ *
+ * @param {number | string | null | undefined} monto
+ * @param {string} concepto
+ * @returns {void}
+ */
+export function mostrar_aviso_anterior(monto, concepto) {
+  const raiz = document.getElementById("vistas");
+  if (!raiz) {
+    return;
+  }
+  let aviso = raiz.querySelector('[data-prueba="aviso-anterior"]');
+  if (!(aviso instanceof HTMLButtonElement)) {
+    const boton = document.createElement("button");
+    boton.type = "button";
+    boton.setAttribute("data-prueba", "aviso-anterior");
+    boton.addEventListener("click", () => {
+      boton.hidden = true;
+    });
+    raiz.append(boton);
+    aviso = boton;
+  }
+  aviso.hidden = false;
+  aviso.textContent = `Pago de un cobro anterior: ${pesos(monto)} ${concepto}`.trim();
 }
 
 /**

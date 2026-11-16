@@ -1,10 +1,11 @@
 import { desfase, formato, restante } from "./cuenta.js";
 import { Escuchas } from "./escucha.js";
 import { desbloquear } from "./sonido.js";
-import { crear_cobro } from "./servidor.js";
+import { cancelar_cobro, crear_cobro } from "./servidor.js";
 import { aplicar_tecla } from "./teclado.js";
 import {
   fijar_mostrar_qr,
+  mostrar_aviso_anterior,
   mostrar_error,
   mostrar_generando,
   mostrar_pagado,
@@ -40,6 +41,9 @@ let ultimo_pago = null;
 /** @type {number} */
 let diferencia_cuenta = 0;
 
+/** @type {string} */
+let mensaje_cancelar = "";
+
 /**
  * @param {object} cobro
  * @param {object} pago
@@ -66,6 +70,18 @@ const escuchas = new Escuchas({
     estado.qr_reabierto = false;
     const segundos = restante(cobro, diferencia_cuenta, Date.now() / 1000);
     pintar_pagado(cobro, pago, segundos >= 1);
+  },
+  anterior(pago, cobro) {
+    mostrar_aviso_anterior(
+      pago.monto_recibido,
+      typeof cobro.concepto === "string" ? cobro.concepto : "",
+    );
+  },
+  cancelado() {
+    if (estado.accion_en_curso === "cancelando") {
+      return;
+    }
+    volver_al_teclado();
   },
   reconectando(visible) {
     mostrar_reconectando(visible);
@@ -126,15 +142,32 @@ function conectar() {
   if (otra_vez) {
     otra_vez.addEventListener("click", al_mostrar_qr);
   }
+  const cancelar = raiz.querySelector('[data-prueba="cancelar"]');
+  if (cancelar) {
+    cancelar.addEventListener("click", () => {
+      void al_cancelar();
+    });
+  }
 }
 
 /**
- * En el corte 1, Nuevo cobro termina la escucha y vacía el teclado (spec 002, RF-041, RF-042).
+ * Nuevo cobro vacía el teclado y sigue escuchando el cobro como anterior
+ * (spec 002, RF-041, RF-042, RF-043).
  *
  * @returns {void}
  */
 function al_nuevo() {
-  escuchas.terminar_en_pantalla();
+  volver_al_teclado();
+}
+
+/**
+ * Deja el cobro en pantalla como anterior y vuelve al teclado vacío
+ * (spec 002, RF-042, RF-043, RF-048, RF-049, RF-074).
+ *
+ * @returns {void}
+ */
+function volver_al_teclado() {
+  escuchas.pasar_a_anterior();
   parar_cuenta();
   cobro_actual = null;
   estado.vista = "teclado";
@@ -144,8 +177,41 @@ function al_nuevo() {
   estado.en_pantalla = null;
   estado.qr_reabierto = false;
   ultimo_pago = null;
+  mensaje_cancelar = "";
   mostrar_reconectando(false);
   mostrar_teclado(estado);
+}
+
+/**
+ * Pide cancelar el cobro pendiente. Mientras responde, el botón no se repite
+ * (spec 002, RF-047, RF-050, RF-072, RF-073).
+ *
+ * @returns {Promise<void>}
+ */
+async function al_cancelar() {
+  if (estado.accion_en_curso || estado.vista !== "qr" || !cobro_actual) {
+    return;
+  }
+  if (cobro_actual.estado !== "pendiente") {
+    return;
+  }
+  const id = cobro_actual.id;
+  estado.accion_en_curso = "cancelando";
+  mensaje_cancelar = "";
+  pintar_qr_actual();
+  const resultado = await cancelar_cobro(id);
+  if (estado.accion_en_curso !== "cancelando") {
+    return;
+  }
+  estado.accion_en_curso = null;
+  if (resultado.cobro) {
+    volver_al_teclado();
+    return;
+  }
+  mensaje_cancelar = resultado.mensaje ?? "";
+  if (estado.vista === "qr" && cobro_actual) {
+    pintar_qr_actual();
+  }
 }
 
 /**
@@ -220,12 +286,7 @@ function al_mostrar_qr() {
   }
   estado.qr_reabierto = true;
   estado.vista = "qr";
-  mostrar_qr({
-    qr_imagen: typeof actual.qr_imagen === "string" ? actual.qr_imagen : "",
-    monto: actual.monto,
-    concepto: typeof actual.concepto === "string" ? actual.concepto : "",
-    cuenta: formato(segundos),
-  });
+  pintar_qr_actual();
 }
 
 /**
@@ -236,6 +297,29 @@ function parar_cuenta() {
     window.clearInterval(cuenta_id);
     cuenta_id = 0;
   }
+}
+
+/**
+ * Pinta el QR del cobro en pantalla, con Cancelar cobro si sigue pendiente
+ * (spec 002, RF-046, RF-050, RF-072).
+ *
+ * @returns {void}
+ */
+function pintar_qr_actual() {
+  const actual = cobro_actual;
+  if (!actual) {
+    return;
+  }
+  const segundos = restante(actual, diferencia_cuenta, Date.now() / 1000);
+  mostrar_qr({
+    qr_imagen: typeof actual.qr_imagen === "string" ? actual.qr_imagen : "",
+    monto: actual.monto,
+    concepto: typeof actual.concepto === "string" ? actual.concepto : "",
+    cuenta: formato(segundos),
+    pendiente: actual.estado === "pendiente",
+    cancelando: estado.accion_en_curso === "cancelando",
+    mensaje_cancelar,
+  });
 }
 
 /**
@@ -277,12 +361,7 @@ function empezar_cuenta(cobro) {
       return;
     }
     if (estado.vista === "qr") {
-      mostrar_qr({
-        qr_imagen: typeof actual.qr_imagen === "string" ? actual.qr_imagen : "",
-        monto: actual.monto,
-        concepto: typeof actual.concepto === "string" ? actual.concepto : "",
-        cuenta: formato(segundos),
-      });
+      pintar_qr_actual();
     }
     if (estado.vista === "pago_recibido") {
       fijar_mostrar_qr(segundos >= 1);

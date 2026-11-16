@@ -235,26 +235,6 @@ def test_nuevo_cobro_vuelve_al_teclado_vacio_desde_cada_vista(
     expect(pagina.locator('[data-prueba="concepto"]')).to_have_value("")
 
 
-def test_en_el_corte_1_nuevo_cobro_deja_de_escuchar_el_cobro(
-    pagina: Page, servidor: ServidorSimulado
-) -> None:
-    """Nuevo cobro cierra el canal y un pago posterior no suena (spec 002, RF-042)."""
-    _preparar(pagina, servidor)
-    id_cobro = _cobrar(pagina, servidor)
-    _esperar_abierto(pagina)
-    _visible(pagina, "nuevo-cobro").click()
-    pagina.wait_for_function(
-        """(id) => window.__canales.some((canal) => {
-          return canal.url.includes(id) && canal.readyState === 2;
-        })""",
-        arg=id_cobro,
-        timeout=5_000,
-    )
-    servidor.agregar_pago(id_cobro, 25.5)
-    pagina.wait_for_timeout(300)
-    assert sonidos(pagina) == 0
-
-
 def test_si_el_servidor_ya_no_conoce_el_cobro_se_ve_la_vista_error(
     pagina: Page, servidor: ServidorSimulado
 ) -> None:
@@ -273,7 +253,7 @@ def test_si_el_servidor_ya_no_conoce_el_cobro_se_ve_la_vista_error(
 def test_al_dejar_de_haber_cobros_en_escucha_se_suelta_la_pantalla(
     pagina: Page, servidor: ServidorSimulado
 ) -> None:
-    """Sin escuchas se suelta el bloqueo, tras fin y tras Nuevo cobro (spec 002, RF-059)."""
+    """Sin escuchas se suelta el bloqueo cuando llega fin (spec 002, RF-059)."""
     _preparar(pagina, servidor)
     id_cobro = _cobrar(pagina, servidor)
     _esperar_abierto(pagina)
@@ -283,10 +263,11 @@ def test_al_dejar_de_haber_cobros_en_escucha_se_suelta_la_pantalla(
     assert bloqueos(pagina)["soltados"] == 1
 
     pagina.reload()
-    _cobrar(pagina, servidor)
+    id_cobro = _cobrar(pagina, servidor)
     _esperar_abierto(pagina)
     pagina.wait_for_function("() => window.__bloqueos_pedidos === 1")
     _visible(pagina, "nuevo-cobro").click()
+    servidor.emitir(id_cobro, "fin", dict(servidor.cobros[id_cobro]))
     pagina.wait_for_function("() => window.__bloqueos_soltados === 1")
     assert bloqueos(pagina)["soltados"] == 1
 
