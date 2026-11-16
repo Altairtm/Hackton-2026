@@ -462,3 +462,68 @@ Commit sugerido:
 ```text
 feat(002): recuperar los cobros en escucha al recargar la página (F8)
 ```
+
+## FN Pulido del corte 2
+
+Fecha: 2026-11-15. Quedó el README del MVP en `web/README.md`, con la descripción de la PWA que sigue siendo la meta del proyecto. La línea de `qr_imagen` en `backend/README.md` ya dice que, si llega en `null`, la web muestra "No se pudo mostrar el QR. Intenta de nuevo." y no dibuja el QR. El quickstart se recorrió y no hizo falta cambiarlo.
+
+### Quickstart
+
+Los comandos se corrieron desde la raíz.
+
+1. **Requisitos.** `uv run --directory backend playwright install chromium webkit` terminó en 0. Chromium 1248 y WebKit 2370 ya estaban en la caché de Playwright. No hizo falta la alternativa de QP-5.
+2. **Pruebas.** `uv run --directory backend pytest ../web -q` dio **243 passed, 32 skipped** en 117 s. Los 32 saltos son las pruebas de lógica pura cuando les toca WebKit. El aviso de pytest-playwright sobre `base_url` sigue igual que en F1. El backend dio **109 passed**, con el aviso de Starlette sobre `TestClient`, igual que en la 001.
+3. **Pantalla en local.** Este comando sirve `web/`:
+
+```bash
+uv run --directory backend python -m http.server 5173 --directory ../web
+```
+
+En `http://localhost:5173`, a 320×568, se ve "PAGO FÁCIL", el teclado y Cobrar desactivado. Monto libre está activo, que es el corte 2. Al teclear 0, punto, 0, 1 se lee "$0.01", Cobrar se activa y Monto libre se apaga. La página no se desplaza hacia los lados (`scrollWidth` 320) y las teclas miden 44 px de alto. `config.js` se dejó con `servidor: ""`. No había servidor en el puerto 8000 y esta sesión no tenía autorización para un cobro real, así que no se pidió el QR de $0.01.
+4. **Despliegue.** El texto coincide con el código: `config.js` publica la única dirección, y la política de `web/index.html` sigue trayendo `https:` en `connect-src` para que #65 lo cambie por el dominio del servidor. La web no está publicada.
+5. **Pago real del corte 1**, **pantalla encendida** y **corte 2.** No se hicieron. Siguen pendientes la autorización de Hugo, un Android y un iPhone, y la web en HTTPS (#65). Los pasos escritos coinciden con la pantalla: "$0.01" sale en seis toques contando Cobrar, y con un monto escrito Monto libre queda apagado. Al recargar, el quickstart pide tocar la pantalla y después pagar; la spec, en ese momento, muestra "Toca para activar el sonido". No se contradicen. No hay TK nuevo.
+
+### Revisión de seguridad del corte 2
+
+- Secretos: `git grep -nE "whsec_|Bearer |PEY_API_KEY|PEY_WEBHOOK_SECRET|pey\.mx" -- web` no encontró nada.
+- Textos de fuera: `git grep -n "innerHTML\|outerHTML\|insertAdjacentHTML\|document.write" -- web/js` no encontró nada. El concepto, los mensajes y los montos se pintan con `textContent`.
+- La política de `web/index.html` es la de R-11 con los ajustes de QP-2: `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self' http://localhost:8000 https:`.
+- Un pago solo se anuncia en `escucha.js` cuando el cobro llega del servidor (`estado`, `pago`, `vencido` o la consulta) y trae un pago nuevo. La pantalla no marca un pago por su cuenta.
+- Cobrar y Monto libre se ignoran mientras `accion_en_curso` está ocupada. La web no reintenta crear un cobro sola.
+- Lo recordado en el celular sale solo de `memoria.js`. `leer()` exige las dos claves `en_pantalla` y `anteriores`, y cada id tiene de 1 a 32 caracteres `[A-Za-z0-9_-]`. Si el texto no cumple, devuelve `null` y no se usa. En `web/js`, `localStorage` no aparece en otro archivo.
+- Cancelar va solo por `POST` a `window.PAGO_FACIL.servidor + /api/cobros/${id}/cancelar`. En `servidor.js` el otro `POST` es el de crear un cobro; ver un cobro y el canal usan la misma dirección configurada.
+
+### Comandos
+
+```bash
+uv run --directory backend pytest ../web -q
+uv run --directory backend ruff check --config pyproject.toml ../web
+uv run --directory backend ruff format --config pyproject.toml --check ../web
+uv run --directory backend pytest -q
+uv run --directory backend ruff check .
+uv run --directory backend ruff format --check .
+```
+
+La web: **243 passed, 32 skipped**. El backend: **109 passed**. Ruff, en los dos, limpio. FN no cambió código de la pantalla ni del servidor.
+
+### Revisión de Claude de F8 y FN (2026-11-16)
+
+Claude revisó `memoria.js`, la recuperación en `escucha.js` y `app.js`, el aviso «Toca para activar el sonido», los avisos apilados, `test_recuperar.py` y lo que Codex ya había corregido, además del README de la web y la sección FN. Ninguna prueba fallaba y no hizo falta cambiar código de la pantalla.
+
+- **Resultados repetidos por Claude:** web **243 passed, 32 skipped** (119 s); backend **109 passed**; `ruff check` y `ruff format --check` limpios en web y backend. Coinciden con los de Grok.
+- **Seguridad, repetida con `grep -rn` y no con `git grep`:** `git grep` solo mira archivos que git conoce, y `memoria.js` y `test_recuperar.py` aún no estaban confirmados, así que se le habrían escapado. Sin secretos, sin `innerHTML`, `eval` ni `new Function`; `localStorage` solo aparece en `memoria.js`; los dos únicos `POST` son crear y cancelar.
+- **Comprobado a mano, contra el simulado, a 320 px:** al recargar vuelve el QR con su cuenta (9:57) y «Toca para activar el sonido» abajo; un pago antes del toque da «Pago recibido» sin sonar (el aviso sigue ahí); tras el toque, el aviso desaparece y el siguiente pago suena una vez y deja «Pago 2» y «Total recibido: $17.00»; la página no se desplaza hacia los lados.
+- **README de la web:** el comando de «Correr en local» sirve la web (`index.html`, `js/memoria.js` y `config.js` dan 200) y paré el servidor por sus PID exactos. Agregué una línea: no abrir el enlace `http://[::]:5173` que imprime el comando, porque el servidor lo rechaza por CORS y la pantalla dice que no hay conexión (nos pasó en F3).
+- **Observaciones, sin cambio:**
+  - Los avisos de cobros anteriores se apilan arriba sin tope de alto. Con unos 8 o más seguidos taparían el botón Nuevo cobro hasta que se toquen uno por uno. Es raro (hacen falta muchos pagos a cobros anteriores con la página cerrada); si molesta, basta `max-height` y `overflow-y: auto` en `avisos-anteriores`.
+  - Un cobro en pantalla que otra pantalla canceló y que recibió un pago con la página cerrada vuelve al teclado sin el aviso de ese pago. Es un caso raro; los demás flujos de cancelación sí avisan.
+  - Un cobro que el servidor ya no conoce lleva a la vista Error al recargar, como pide la spec. Si el servidor se reinicia, el dueño la verá una vez.
+- **No se probó:** el pago real de $0.01 de F8 (CE-014), los de F5 a F7, el iPhone (TK-2) y el modo avión (TK-1).
+
+### Cierre
+
+Commit sugerido:
+
+```text
+docs(002): pulido del corte 2, README de la web y quickstart validado (FN)
+```

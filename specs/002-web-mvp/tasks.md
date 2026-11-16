@@ -3,7 +3,7 @@
 - **Spec**: [spec.md](spec.md), estado: Aprobada el 2026-11-15, con el cambio C-3 aplicado (RF-078)
 - **Plan**: [plan.md](plan.md), estado: Aprobado el 2026-11-15 (DP-1 a DP-17, QP-1 a QP-5)
 - **Fecha**: 2026-11-15
-- **Estado**: `F8 implementada por Grok y revisada por Codex (2026-11-15)`. Prueba CoDi real de F8 pendiente. F7 terminada el 2026-11-15. F1 terminada el 2026-11-15 (Hugo la revisó). El C-2 a la spec 001 (F0) quedó aplicado el 2026-11-15 con el campo `hora_servidor`.
+- **Estado**: `FN terminada (Grok, 2026-11-15)`. F8 implementada por Grok y revisada por Codex (2026-11-15). Prueba CoDi real de F8 pendiente. F7 terminada el 2026-11-15. F1 terminada el 2026-11-15 (Hugo la revisó). El C-2 a la spec 001 (F0) quedó aplicado el 2026-11-15 con el campo `hora_servidor`. Pagos reales del quickstart §5 a §7 pendientes de autorización, celulares y #65.
 - **Entrada**: los documentos de `specs/002-web-mvp/`: plan.md, spec.md, research.md, data-model.md, contracts/ y quickstart.md
 
 > **Notas para los comandos de spec-kit.**
@@ -643,26 +643,26 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
 
 ## Fase N (FN): Pulido y temas transversales · 20 nov
 
-- [ ] T058 [P] Actualizar `web/README.md` con una sección del MVP: cómo correr, probar, configurar y publicar la web
+- [X] T058 [P] Actualizar `web/README.md` con una sección del MVP: cómo correr, probar, configurar y publicar la web
   - Se conserva la descripción general de la PWA, que sigue siendo la meta del proyecto (errata 2 de la QA).
   - Cómo servirla en local (quickstart §3), el comando de las pruebas, el valor de `config.js`, los dos cortes y lo que necesita #65 (quickstart §4, incluido el cambio de `https:` en la política).
   - **RF**: RF-064
   - **Dep.**: T057
   - **Hecho cuando**: cada comando del README funciona tal cual desde la raíz.
-- [ ] T059 [P] Corregir `backend/README.md:88`: con `qr_imagen` en `null`, la web muestra "No se pudo mostrar el QR. Intenta de nuevo." y no dibuja el QR (DP-17, H-9)
+- [X] T059 [P] Corregir `backend/README.md:88`: con `qr_imagen` en `null`, la web muestra "No se pudo mostrar el QR. Intenta de nuevo." y no dibuja el QR (DP-17, H-9)
   - **RF**: RF-078
   - **Dep.**: T057
   - **Hecho cuando**: la línea ya no dice que la web dibuja el QR a partir de `qr`.
-- [ ] T060 [P] Repetir la revisión de seguridad para el corte 2 en la sección FN de `verification-guide.md`
+- [X] T060 [P] Repetir la revisión de seguridad para el corte 2 en la sección FN de `verification-guide.md`
   - La misma lista y los mismos `git grep` de T042, más lo recordado en el celular (solo ids validados, RF-077) y la ruta de cancelar (solo `POST`, desde el origen configurado).
   - **RF**: RF-063, RF-077
   - **Dep.**: T057
   - **Hecho cuando**: cada punto tiene su resultado anotado.
-- [ ] T061 Validar `specs/002-web-mvp/quickstart.md` de punta a punta y corregir lo que no coincida
+- [X] T061 Validar `specs/002-web-mvp/quickstart.md` de punta a punta y corregir lo que no coincida
   - **RF**: — (todas las historias)
   - **Dep.**: T058, T059, T060
   - **Hecho cuando**: los pasos 1 a 7 dan lo esperado; las diferencias se corrigen en el quickstart o se anotan como TK.
-- [ ] T062 Cierre de FN: pruebas en verde, sección FN completa en `verification-guide.md` y commit sugerido
+- [X] T062 Cierre de FN: pruebas en verde, sección FN completa en `verification-guide.md` y commit sugerido
   - Commit sugerido: `docs(002): pulido del corte 2, README de la web y quickstart validado (FN)`.
   - **RF**: —
   - **Dep.**: T061

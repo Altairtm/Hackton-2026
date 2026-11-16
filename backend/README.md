@@ -86,7 +86,7 @@ Un cobro se ve así (nombres en `snake_case`; los pagos van numerados):
 
 Cada elemento de `pagos` trae `numero` (1, 2, 3…), `monto_recibido`, `monto_distinto` y `pagado_en`. `hora_servidor` es la hora del servidor al armar la respuesta o el evento, para que la web no dependa del reloj del celular (C-2). `estado` vale `pendiente`, `pagado`, `vencido` o `cancelado`.
 
-- `qr_imagen`: PNG en base64 (`<img src="data:image/png;base64,...">`). Puede ser `null`; en ese caso la web dibuja el QR a partir de `qr`.
+- `qr_imagen`: PNG en base64 (`<img src="data:image/png;base64,...">`). Puede ser `null`; en ese caso la web muestra "No se pudo mostrar el QR. Intenta de nuevo." y no dibuja el QR.
 - Errores: `422` monto o concepto inválido, `404` cobro inexistente, `409` no se puede cancelar, `429` demasiados cobros o demasiados canales desde la misma IP, `502`/`503` pey falló. El campo `detail` trae un mensaje para mostrar.
 
 En la web, al recibir `fin` hay que cerrar el canal. Si no, el navegador se reconecta:
