@@ -139,3 +139,67 @@ Commit sugerido:
 ```text
 feat(002): lógica pura, uso del servidor, sonido y vistas base de la web (F2)
 ```
+
+## F3 Teclado, cobro y QR
+
+Fecha: 2026-11-15. El teclado de la pantalla ya escribe el monto. Cobrar pide el cobro, muestra "Generando QR…" al instante y, si el servidor responde con imagen, enseña el QR con el monto, el concepto, la indicación de CoDi y una cuenta regresiva que sigue `hora_servidor`. Si el servidor rechaza, no hay conexión o el QR llega sin imagen, vuelve el teclado con el mensaje y lo escrito se conserva.
+
+Las pruebas de pantalla se escribieron antes del código. Fallaron porque pulsar un número dejaba el monto en "$" y Cobrar seguía desactivado. La de 40 caracteres en el concepto ya pasaba: el `maxlength` venía de F2.
+
+### Cobro de $0.01 en local, sin pagarlo
+
+Sigue el quickstart §3. Hace falta el servidor real de la 001 en el puerto 8000. No pagues el QR: esta fase solo comprueba que se genera y que la cuenta corre.
+
+1. En `backend/.env`, agrega `WEB_ORIGIN=http://localhost:5173` sin tocar las demás variables, y arranca el servidor como dice el quickstart de la 001.
+2. En `web/config.js`, pon `servidor: "http://localhost:8000"`. Al terminar, déjalo otra vez en `""` para no guardar esa dirección.
+3. Sirve la web:
+
+```bash
+uv run --directory backend python -m http.server 5173 --directory ../web
+```
+
+4. Abre `http://localhost:5173` en el navegador, en modo celular, a 320 px de ancho.
+5. Teclea 0, punto, 0 y 1. El monto queda en "$0.01" y Cobrar se activa. Escribe un concepto, por ejemplo "Tacos", y pulsa Cobrar.
+6. Al terminar, para el `http.server` por su PID exacto (`lsof -ti tcp:5173` y `kill <PID>`). No uses `pkill`.
+
+**Esperado**: "Generando QR…" sale enseguida. Después se ve el QR grande, "$0.01", "Tacos", "Escanéalo desde la app de tu banco, en la opción CoDi" y una cuenta que empieza cerca de 10:00 y baja. La página no se desplaza hacia los lados. Si no hay llave de pey, el teclado vuelve con el mensaje del servidor y "$0.01" sigue escrito.
+
+### Comandos
+
+```bash
+uv run --directory backend pytest ../web -q
+uv run --directory backend ruff check --config pyproject.toml ../web
+uv run --directory backend ruff format --config pyproject.toml --check ../web
+uv run --directory backend pytest -q
+uv run --directory backend ruff check .
+uv run --directory backend ruff format --check .
+```
+
+**Esperado en la web**: `94 passed, 29 skipped`. Las 29 saltadas siguen siendo la lógica pura en WebKit. Entran las de F1 y F2. El aviso `PytestRemovedIn10Warning` de pytest-playwright sigue igual.
+
+**Esperado en el backend**: `109 passed`. F3 no tocó el backend. Sigue el aviso de Starlette sobre `TestClient` y httpx.
+
+Ruff de la web y del backend queda limpio.
+
+### Revisión de Claude de F3 (2026-11-15)
+
+Claude revisó lo que implementó Grok: las pruebas nuevas (`test_teclado.py`, `test_crear_y_mostrar_qr.py`), `app.js`, `vistas.js` y `estilos.css`. Ninguna prueba fallaba y no hizo falta corregir código. La suite es estable: 3 corridas seguidas dieron `94 passed, 29 skipped`; el backend da `109 passed` y ruff queda limpio en la web y en el backend.
+
+- **Contra el servidor simulado, en el navegador integrado a 320 px, siguiendo los pasos de arriba:** teclear 0, punto, 0, 1 deja "$0.01" y activa Cobrar; con "Tacos" sale "Generando QR…" y después el QR (224 px de 320, el 70 %), "$0.01", "Tacos", la indicación de CoDi y una cuenta que arranca en 9:59 y baja. La página no se desplaza hacia los lados (`scrollWidth` 320) y la consola no muestra errores.
+- **Los `detail` de las pruebas de rechazo (422, 429, 502 y 503) son los textos reales de `backend/app/main.py`.** El backend siempre responde `detail` como texto, así que `crear_cobro` no necesita cubrir el caso de una lista.
+- **No se probó contra el servidor real:** hacerlo llama a pey. Queda para Hugo, con la llave en `backend/.env`, sin pagar el QR.
+- **Paso 1 de la guía:** `WEB_ORIGIN` ya vale `http://localhost:5173` por defecto en `backend/app/config.py`. Solo hace falta agregarla si la web se sirve desde otro puerto.
+
+**Probado por Hugo contra el servidor real (2026-11-15):** con su llave de pey, el cobro de $0.01 con "Tacos" mostró el QR. Un primer intento falló porque abrió `http://[::]:5173` (el enlace que imprime `http.server`): el backend solo permite el origen `http://localhost:5173` y rechaza el resto con `400 Disallowed CORS origin`, que la web muestra como falta de conexión. Hay que abrir `http://localhost:5173` a mano.
+
+**Tema anotado para después:** el teclado de la computadora no escribe el monto; solo funcionan las teclas de la pantalla. La spec no pide teclado físico (ni en la spec, ni en el plan, ni en las tareas), así que agregarlo es un cambio `C-n` a la spec 002, que Hugo aprueba por separado. Para un celular no hace falta.
+
+Pendiente para F4, a la vista en el navegador: la cuenta repinta la vista QR cada 250 ms, así que al llegar un pago (T030 en adelante) hay que parar ese intervalo antes de mostrar Pago recibido. El QR mide el 70 % del ancho (`70vw`), correcto en un celular de pie y demasiado alto en horizontal; el diseño real llega más adelante.
+
+### Cierre
+
+Commit sugerido:
+
+```text
+feat(002): teclado, crear el cobro y mostrar el QR con cuenta regresiva (F3)
+```

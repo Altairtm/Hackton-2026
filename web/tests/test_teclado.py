@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from conftest import abrir
+from conftest import abrir, tocar
 from playwright.sync_api import Page, expect
 from servidor_simulado import ServidorSimulado
 
@@ -169,3 +169,74 @@ def test_teclado_y_generando_caben_en_320_px(pagina: Page, servidor: ServidorSim
     )
     expect(pagina.locator('[data-prueba="vista-generando"]')).to_be_visible()
     cabe()
+
+
+def _teclear(pagina: Page, monto: str) -> None:
+    nombres = ["tecla-punto" if caracter == "." else f"tecla-{caracter}" for caracter in monto]
+    tocar(pagina, *nombres)
+
+
+def test_teclear_25_50_muestra_el_monto_en_grande(pagina: Page, servidor: ServidorSimulado) -> None:
+    """2, 5, punto, 5 y 0 dejan $25.50 (spec 002, RF-001, RF-002)."""
+    abrir(pagina, servidor)
+    _teclear(pagina, "25.50")
+    expect(pagina.locator('[data-prueba="monto"]')).to_have_text("$25.50")
+
+
+def test_el_teclado_en_pantalla_ignora_el_tercer_decimal_y_borra(
+    pagina: Page, servidor: ServidorSimulado
+) -> None:
+    """El tercer decimal no entra y borrar quita un carácter (spec 002, RF-003, RF-004)."""
+    abrir(pagina, servidor)
+    _teclear(pagina, "25.50")
+    tocar(pagina, "tecla-1")
+    expect(pagina.locator('[data-prueba="monto"]')).to_have_text("$25.50")
+    pagina.reload()
+    _teclear(pagina, "25.5")
+    tocar(pagina, "tecla-borrar")
+    expect(pagina.locator('[data-prueba="monto"]')).to_have_text("$25.")
+
+
+def test_el_teclado_en_pantalla_reemplaza_el_cero_y_escribe_cero_punto(
+    pagina: Page, servidor: ServidorSimulado
+) -> None:
+    """0 y 7 queda en $7; el punto inicial escribe $0. (spec 002, RF-066, RF-067)."""
+    abrir(pagina, servidor)
+    _teclear(pagina, "07")
+    expect(pagina.locator('[data-prueba="monto"]')).to_have_text("$7")
+    pagina.reload()
+    tocar(pagina, "tecla-punto")
+    expect(pagina.locator('[data-prueba="monto"]')).to_have_text("$0.")
+
+
+def test_el_teclado_en_pantalla_no_acepta_un_sexto_digito_entero(
+    pagina: Page, servidor: ServidorSimulado
+) -> None:
+    """El sexto dígito entero se ignora (spec 002, RF-068)."""
+    abrir(pagina, servidor)
+    _teclear(pagina, "123456")
+    expect(pagina.locator('[data-prueba="monto"]')).to_have_text("$12345")
+
+
+def test_el_concepto_acepta_como_maximo_40_caracteres(
+    pagina: Page, servidor: ServidorSimulado
+) -> None:
+    """El teclado del celular no deja pasar de 40 caracteres (spec 002, RF-005)."""
+    abrir(pagina, servidor)
+    pagina.locator('[data-prueba="concepto"]').press_sequentially("a" * 45, delay=0)
+    expect(pagina.locator('[data-prueba="concepto"]')).to_have_value("a" * 40)
+
+
+def test_cobrar_esta_desactivado_sin_monto(pagina: Page, servidor: ServidorSimulado) -> None:
+    """Cobrar sigue apagado en $ y en $0., y se prende en $0.01 (spec 002, RF-006)."""
+    abrir(pagina, servidor)
+    monto = pagina.locator('[data-prueba="monto"]')
+    cobrar = pagina.locator('[data-prueba="cobrar"]')
+    expect(monto).to_have_text("$")
+    expect(cobrar).to_be_disabled()
+    _teclear(pagina, "0.")
+    expect(monto).to_have_text("$0.")
+    expect(cobrar).to_be_disabled()
+    _teclear(pagina, "01")
+    expect(monto).to_have_text("$0.01")
+    expect(cobrar).to_be_enabled()

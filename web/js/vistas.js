@@ -1,6 +1,7 @@
 import { cobrar_activo } from "./teclado.js";
 
 const TEXTO_GENERANDO = "Generando QR…";
+const TEXTO_CODI = "Escanéalo desde la app de tu banco, en la opción CoDi";
 let listas = false;
 
 /**
@@ -16,7 +17,7 @@ function asegurar() {
     return;
   }
   listas = true;
-  raiz.append(crear_teclado(), crear_generando());
+  raiz.append(crear_teclado(), crear_generando(), crear_qr());
 }
 
 /**
@@ -92,6 +93,35 @@ function crear_generando() {
 }
 
 /**
+ * @returns {HTMLElement}
+ */
+function crear_qr() {
+  const vista = document.createElement("section");
+  vista.setAttribute("data-prueba", "vista-qr");
+  vista.hidden = true;
+
+  const imagen = document.createElement("img");
+  imagen.setAttribute("data-prueba", "qr");
+  imagen.alt = "QR";
+
+  const monto = document.createElement("p");
+  monto.setAttribute("data-prueba", "qr-monto");
+
+  const concepto = document.createElement("p");
+  concepto.setAttribute("data-prueba", "qr-concepto");
+
+  const indicacion = document.createElement("p");
+  indicacion.setAttribute("data-prueba", "indicacion-codi");
+  indicacion.textContent = TEXTO_CODI;
+
+  const cuenta = document.createElement("p");
+  cuenta.setAttribute("data-prueba", "cuenta");
+
+  vista.append(imagen, monto, concepto, indicacion, cuenta);
+  return vista;
+}
+
+/**
  * @param {string} nombre
  */
 function mostrar_solo(nombre) {
@@ -148,4 +178,41 @@ export function mostrar_generando(_estado) {
     generando.textContent = TEXTO_GENERANDO;
   }
   mostrar_solo("vista-generando");
+}
+
+/**
+ * Pinta la vista QR. La imagen solo usa el prefijo data de un PNG
+ * (spec 002, RF-015, RF-016, RF-017, RF-018, RF-077).
+ *
+ * @param {{ qr_imagen?: string, monto?: number | null, concepto?: string, cuenta?: string }} datos
+ * @returns {void}
+ */
+export function mostrar_qr(datos) {
+  asegurar();
+  const imagen = document.querySelector('[data-prueba="qr"]');
+  if (imagen instanceof HTMLImageElement) {
+    const src = `data:image/png;base64,${datos.qr_imagen ?? ""}`;
+    if (imagen.getAttribute("src") !== src) {
+      imagen.setAttribute("src", src);
+    }
+  }
+  const monto = document.querySelector('[data-prueba="qr-monto"]');
+  if (monto) {
+    const valor = datos.monto;
+    monto.textContent =
+      typeof valor === "number" && Number.isFinite(valor) ? `$${valor.toFixed(2)}` : "Monto libre";
+  }
+  const concepto = document.querySelector('[data-prueba="qr-concepto"]');
+  if (concepto) {
+    concepto.textContent = datos.concepto ?? "";
+  }
+  const indicacion = document.querySelector('[data-prueba="indicacion-codi"]');
+  if (indicacion) {
+    indicacion.textContent = TEXTO_CODI;
+  }
+  const cuenta = document.querySelector('[data-prueba="cuenta"]');
+  if (cuenta) {
+    cuenta.textContent = datos.cuenta ?? "";
+  }
+  mostrar_solo("vista-qr");
 }

@@ -274,7 +274,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
 
 ### Pruebas de las historias 1 y 2 (primero, deben fallar antes de implementar)
 
-- [ ] T022 [P] [US1] Escribir las pruebas del teclado en pantalla en `web/tests/test_teclado.py`
+- [X] T022 [P] [US1] Escribir las pruebas del teclado en pantalla en `web/tests/test_teclado.py`
   - `test_teclear_25_50_muestra_el_monto_en_grande` (escenario 1): tocar 2, 5, punto, 5 y 0 → `monto` = "$25.50".
   - `test_el_teclado_en_pantalla_ignora_el_tercer_decimal_y_borra` (escenarios 2 y 3): otro dígito deja "$25.50"; desde "$25.5", borrar deja "$25.".
   - `test_el_teclado_en_pantalla_reemplaza_el_cero_y_escribe_cero_punto` (escenario 10): 0 y 7 → "$7"; punto como primera tecla → "$0.".
@@ -284,7 +284,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **RF**: RF-001, RF-002, RF-003, RF-004, RF-005, RF-006, RF-066, RF-067, RF-068
   - **Dep.**: T021
   - **Hecho cuando**: las pruebas existen y fallan porque las teclas todavía no hacen nada.
-- [ ] T023 [P] [US1] Escribir las pruebas de crear el cobro en pantalla en `web/tests/test_crear_y_mostrar_qr.py`
+- [X] T023 [P] [US1] Escribir las pruebas de crear el cobro en pantalla en `web/tests/test_crear_y_mostrar_qr.py`
   - `test_cobrar_pide_el_cobro_y_muestra_el_qr_con_monto_concepto_e_indicacion_codi`: el simulado recibe `{"monto": 25.5, "concepto": "Tacos"}`; vista QR con `qr` (`src` empieza por `data:image/png;base64,`), `qr-monto` = "$25.50", `qr-concepto` = "Tacos" e `indicacion-codi` = "Escanéalo desde la app de tu banco, en la opción CoDi".
   - `test_al_pulsar_cobrar_aparece_generando_qr_y_un_segundo_toque_no_crea_otro_cobro`: con `responder_crear(demora=2)`, `vista-generando` aparece en menos de 0.1 s después del toque, medido dentro de la página con `performance.now()` entre el `pointerdown` de `cobrar` y un `MutationObserver` sobre `vista-generando` (CE-005); un segundo toque no agrega otro `POST /api/cobros` a `peticiones`.
   - `test_si_el_servidor_rechaza_el_cobro_se_ve_su_mensaje_y_se_conserva_lo_escrito` (parametrizada con 422, 429, 502 y 503, cada una con su `detail` real de la 001, p. ej. "El monto máximo de la demo es $100"): vuelve `vista-teclado` con `mensaje` = el `detail`, sin el número del código, y `monto` y `concepto` como estaban.
@@ -296,7 +296,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **RF**: RF-009, RF-010, RF-011, RF-012, RF-013, RF-014, RF-015, RF-016, RF-017, RF-060, RF-061, RF-062, RF-077, RF-078
   - **Dep.**: T021
   - **Hecho cuando**: las pruebas existen y fallan porque Cobrar todavía no pide nada.
-- [ ] T024 [US2] Escribir las pruebas de la cuenta regresiva en pantalla en `web/tests/test_crear_y_mostrar_qr.py`
+- [X] T024 [US2] Escribir las pruebas de la cuenta regresiva en pantalla en `web/tests/test_crear_y_mostrar_qr.py`
   - `test_un_cobro_recien_creado_muestra_la_cuenta_en_10_00` (escenario 1): `hora_servidor = creado_en`, `cuenta` = "10:00".
   - `test_la_cuenta_regresiva_sigue_la_hora_del_servidor_aunque_el_celular_este_desfasado` (escenario 2, CE-009): `reloj(pagina, hora)` con el celular 5 minutos adelantado respecto a `hora_servidor`; `cuenta` empieza entre "10:00" y "9:58".
   - `test_si_crear_tardo_9_segundos_la_cuenta_arranca_en_9_51` (CE-016): `hora_servidor = creado_en + 9`; `cuenta` entre "9:51" y "9:49".
@@ -307,25 +307,25 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
 
 ### Implementación de las historias 1 y 2
 
-- [ ] T025 [US1] Conectar el teclado y el concepto en `web/js/app.js`
+- [X] T025 [US1] Conectar el teclado y el concepto en `web/js/app.js`
   - Cada `tecla-*` aplica `aplicar_tecla` al estado y vuelve a pintar; `concepto` guarda lo escrito; `cobrar` se activa con `cobrar_activo`. Tocar una tecla borra `mensaje`.
   - **RF**: RF-001, RF-002, RF-003, RF-004, RF-005, RF-006, RF-066, RF-067, RF-068
   - **Dep.**: T022
   - **Hecho cuando**: las pruebas de T022 pasan en los dos celulares.
-- [ ] T026 [US1] Implementar el toque a Cobrar en `web/js/app.js` y el mensaje de la vista Teclado en `web/js/vistas.js`
+- [X] T026 [US1] Implementar el toque a Cobrar en `web/js/app.js` y el mensaje de la vista Teclado en `web/js/vistas.js`
   - Al tocar `cobrar` con `accion_en_curso` vacía: `desbloquear()` del sonido (RF-025), `accion_en_curso = "creando"`, vista Generando QR en el mismo manejador (sin esperar nada) y `crear_cobro(Number(monto), concepto)`. Con `accion_en_curso` ocupada, el toque se ignora.
   - Con `{ cobro }`: guarda el cobro, `en_pantalla = cobro.id` y muestra la vista QR. Con `{ mensaje }`: vista Teclado con `mensaje`, `monto` y `concepto` intactos. En los dos casos `accion_en_curso` vuelve a vacía.
   - **RF**: RF-009, RF-010, RF-011, RF-012, RF-013, RF-014, RF-025, RF-062, RF-078
   - **Dep.**: T023, T025
   - **Hecho cuando**: las pruebas de T023 sobre Generando QR, doble toque, rechazos, conexión, imagen vacía y mensaje pasan.
-- [ ] T027 [US2] Implementar la vista QR en `web/js/vistas.js`, su cuenta regresiva en `web/js/app.js` y su diseño en `web/estilos.css`
+- [X] T027 [US2] Implementar la vista QR en `web/js/vistas.js`, su cuenta regresiva en `web/js/app.js` y su diseño en `web/estilos.css`
   - Vista QR: `qr` con `src = "data:image/png;base64," + qr_imagen` (solo ese prefijo), `qr-monto` = "$" + `monto.toFixed(2)`, `qr-concepto` con `textContent`, `indicacion-codi` siempre visible y `cuenta`.
   - Cuenta: al recibir el cobro se calcula `desfase` y un `setInterval` de 250 ms pinta `formato(restante(…))` (DP-8).
   - `estilos.css`: `qr` con al menos el 70 % del ancho e `image-rendering: pixelated` (CE-007).
   - **RF**: RF-015, RF-016, RF-017, RF-018, RF-019, RF-077
   - **Dep.**: T024, T026
   - **Hecho cuando**: todas las pruebas de T023 y T024 pasan en los dos celulares.
-- [ ] T028 [US2] Cierre de F3: pruebas en verde, sección F3 en `verification-guide.md` y commit sugerido
+- [X] T028 [US2] Cierre de F3: pruebas en verde, sección F3 en `verification-guide.md` y commit sugerido
   - La guía dice cómo crear un cobro de $0.01 en local contra el servidor real (quickstart §3) y comprobar el QR y la cuenta. Sin pagarlo todavía.
   - Commit sugerido: `feat(002): teclado, crear el cobro y mostrar el QR con cuenta regresiva (F3)`.
   - **RF**: —
