@@ -16,7 +16,7 @@ La pantalla no crea datos de negocio: el cobro y el pago son los de la spec 001 
 | `mensaje` | El mensaje de error en la vista Teclado, o nada | Texto del servidor o de la pantalla | RF-012, RF-013, RF-078 |
 | `en_pantalla` | El identificador del cobro en pantalla, o nada | Identificador o `null` | Glosario |
 | `accion_en_curso` | Si se está creando o cancelando | `null`, `creando`, `cancelando` | RF-011, RF-073 |
-| `sonido_desbloqueado` | Si el navegador ya dejó sonar | `true` / `false` | RF-025, RF-054 |
+| `sonido_desbloqueado` | Si el dueño ya hizo un gesto para iniciar la reproducción | `true` / `false` | RF-025, RF-054 |
 | `qr_reabierto` | Si la vista QR se volvió a mostrar tras un pago (C2) | `true` / `false` | RF-070, RF-071 |
 
 ## 2. Escucha (una por cobro en escucha)
@@ -24,10 +24,10 @@ La pantalla no crea datos de negocio: el cobro y el pago son los de la spec 001 
 | Campo | Qué guarda | Requisitos |
 |---|---|---|
 | `id` | Identificador del cobro | — |
-| `cobro` | Último objeto cobro recibido del servidor | RF-016, RF-023 |
+| `cobro` | Objeto vigente recibido del servidor. Se descartan los datos con menos pagos o, a igualdad de pagos, con hora del servidor anterior | RF-016, RF-023, RF-079 |
 | `desfase` | `hora_servidor − ahora_del_celular` del último cobro recibido (0 si no vino `hora_servidor`) | RF-019 |
 | `canal` | `sin_canal` (solo consulta cada 3 s, QP-1), `abriendo`, `abierto`, `cortado` o `cerrado` | RF-030 a RF-032 |
-| `consultando` | Si la consulta del estado cada 3 s está activa | RF-030 |
+| `_consulta`, `_consulta_en_curso` | Temporizador de 8 s con el canal abierto o de 3 s sin él, y bandera de GET en curso | RF-030, RF-079 |
 | `es_anterior` | `false` para el cobro en pantalla, `true` para un cobro anterior (C2) | RF-043 a RF-045 |
 
 **Ciclo de una escucha**:
@@ -87,4 +87,4 @@ Encima de cualquier vista pueden aparecer tres avisos que no la cambian:
 
 - el aviso de pago de un cobro anterior (C2, RF-045);
 - "Reconectando…" (RF-032), en las vistas del cobro en pantalla;
-- "Toca para activar el sonido" (C2, RF-054).
+- «Toca para activar el sonido» al recuperar cobros o si el navegador rechaza el sonido de un pago (RF-054).

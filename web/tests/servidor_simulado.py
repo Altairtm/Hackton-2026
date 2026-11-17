@@ -153,6 +153,7 @@ class ServidorSimulado:
         self._demora_cancelar = 0.0
         self._config_js: str | None = None
         self._rechazos: dict[str, int] = {}
+        self._canales_mudos: set[str] = set()
         self._suscriptores: dict[str, list[asyncio.Queue[_Mensaje]]] = {}
         self._candado = threading.Lock()
         self._bucle: asyncio.AbstractEventLoop | None = None
@@ -218,6 +219,7 @@ class ServidorSimulado:
             self._demora_cancelar = 0.0
             self._config_js = None
             self._rechazos.clear()
+            self._canales_mudos.clear()
             self._hora = int(time.time())
             self.retry_ms = 3000
         self._en_bucle(self._cerrar_todos)
@@ -309,6 +311,11 @@ class ServidorSimulado:
         """Quita el rechazo de `cortar_canal` para que el canal vuelva a abrirse."""
         with self._candado:
             self._rechazos.pop(id_cobro, None)
+
+    def dejar_canal_mudo(self, id_cobro: str) -> None:
+        """Abre el canal sin entregar eventos, como un proxy con búfer (spec 002, C-4)."""
+        with self._candado:
+            self._canales_mudos.add(id_cobro)
 
     def olvidar(self, id_cobro: str) -> None:
         """Borra el cobro, como si el servidor se hubiera reiniciado (spec 002, R-2)."""
@@ -413,6 +420,7 @@ class ServidorSimulado:
             with self._candado:
                 rechazo = self._rechazos.get(cobro_id)
                 cobro = self._guardados.get(cobro_id)
+                mudo = cobro_id in self._canales_mudos
             if rechazo is not None:
                 detalle = _DETALLE_CANAL.get(rechazo, "El canal no está disponible")
                 return JSONResponse({"detail": detalle}, status_code=rechazo)
@@ -426,13 +434,15 @@ class ServidorSimulado:
 
             async def flujo() -> AsyncIterator[str]:
                 try:
-                    yield f"retry: {retry}\n\n"
-                    yield _evento("estado", estado)
+                    if not mudo:
+                        yield f"retry: {retry}\n\n"
+                        yield _evento("estado", estado)
                     while True:
                         mensaje = await cola.get()
                         if mensaje is None:
                             return
-                        yield _evento(mensaje[0], mensaje[1])
+                        if not mudo:
+                            yield _evento(mensaje[0], mensaje[1])
                 finally:
                     colas = self._suscriptores.get(cobro_id, [])
                     if cola in colas:
@@ -468,7 +478,9 @@ class ServidorSimulado:
             return Response(status_code=204)
         with self._candado:
             config = self._config_js
-        if limpio == "config.js" and config is not None:
+        if limpio == "config.js":
+            if config is None:
+                config = _CONFIG_POR_DEFECTO
             return Response(config, media_type="text/javascript; charset=utf-8")
         destino = (_WEB / limpio).resolve()
         if _WEB not in destino.parents:
@@ -477,8 +489,6 @@ class ServidorSimulado:
         if destino.relative_to(_WEB).parts[0] == "tests":
             raise HTTPException(status_code=404, detail="No encontrado")
         if not destino.is_file():
-            if limpio == "config.js":
-                return Response(_CONFIG_POR_DEFECTO, media_type="text/javascript; charset=utf-8")
             raise HTTPException(status_code=404, detail="No encontrado")
         return FileResponse(destino, media_type=_TIPOS.get(destino.suffix))
 

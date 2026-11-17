@@ -3,14 +3,15 @@ import { desfase } from "./cuenta.js";
 import { guardar } from "./memoria.js";
 import { mantener_encendida } from "./pantalla.js";
 import { ver_cobro } from "./servidor.js";
-import { sonar, vibrar } from "./sonido.js";
+import { vibrar } from "./sonido.js";
 
 const CONSULTA_MS = 3_000;
+const CONSULTA_CON_CANAL_MS = 8_000;
 const REINTENTO_MS = 15_000;
 
 /**
- * Un cobro en escucha: canal o consulta cada 3 s, y reintento cada 15 s
- * (spec 002, RF-020, RF-030, RF-031, RF-033, RF-034, QP-1).
+ * Un cobro en escucha: consulta cada 8 s con canal abierto o cada 3 s sin él
+ * (spec 002, RF-020, RF-030, RF-031, RF-033, RF-034, RF-079, QP-1).
  */
 export class Escucha {
   /**
@@ -24,13 +25,13 @@ export class Escucha {
     this.desfase = cobro ? desfase(cobro, Date.now() / 1000) : 0;
     /** @type {"sin_canal" | "abriendo" | "abierto" | "cortado" | "cerrado"} */
     this.canal = "sin_canal";
-    this.consultando = false;
     this.es_anterior = false;
     this._al_recibir = al_recibir;
     /** @type {EventSource | null} */
     this._fuente = null;
     /** @type {number} */
     this._consulta = 0;
+    this._consulta_en_curso = false;
     /** @type {number} */
     this._reintento = 0;
     this._terminada = false;
@@ -71,12 +72,11 @@ export class Escucha {
         fuente.close();
       }
       this.canal = "sin_canal";
-      this._parar_consulta();
-      this._consultar_luego(CONSULTA_MS);
+      this._consultar_luego();
       return;
     }
-    if (!this.consultando) {
-      this._consultar_luego(CONSULTA_MS);
+    if (this._consulta === 0) {
+      this._consultar_luego();
     }
   }
 
@@ -98,7 +98,7 @@ export class Escucha {
         return;
       }
       this.canal = "abierto";
-      this._parar_consulta();
+      this._consultar_luego();
       this._parar_reintento();
       console.info(`escucha ${this.id}: abierto`);
       this._al_recibir({ tipo: "abierto", escucha: this });
@@ -116,24 +116,10 @@ export class Escucha {
       }
     });
     fuente.addEventListener("vencido", (evento) => {
-      if (this._fuente !== fuente || this._terminada) {
-        return;
-      }
-      const datos = leer_json(evento);
-      if (datos) {
-        this.cobro = datos;
-      }
-      this._al_recibir({ tipo: "vencido", escucha: this, cobro: datos || this.cobro });
+      this._aplicar_evento(fuente, evento, "vencido");
     });
     fuente.addEventListener("cancelado", (evento) => {
-      if (this._fuente !== fuente || this._terminada) {
-        return;
-      }
-      const datos = leer_json(evento);
-      if (datos) {
-        this.cobro = datos;
-      }
-      this._al_recibir({ tipo: "cancelado", escucha: this, cobro: datos || this.cobro });
+      this._aplicar_evento(fuente, evento, "cancelado");
     });
     fuente.addEventListener("fin", () => {
       if (this._fuente !== fuente || this._terminada) {
@@ -150,7 +136,7 @@ export class Escucha {
       this.canal = "cortado";
       console.info(`escucha ${this.id}: cortado`);
       this._al_recibir({ tipo: "cortado", escucha: this });
-      this._consultar_luego(CONSULTA_MS);
+      this._consultar_luego();
       // Solo el cierre definitivo (HTTP distinto de 200) se reabre a los 15 s.
       // Un corte de red lo reintenta el propio navegador (R-5, RF-034).
       if (fuente.readyState === EventSource.CLOSED) {
@@ -162,42 +148,51 @@ export class Escucha {
   /**
    * @param {EventSource} fuente
    * @param {Event} evento
+   * @param {string} [tipo]
    * @returns {void}
    */
-  _aplicar_evento(fuente, evento) {
+  _aplicar_evento(fuente, evento, tipo) {
     if (this._fuente !== fuente || this._terminada) {
       return;
     }
     const datos = leer_json(evento);
     if (datos) {
-      this._aplicar(datos);
+      this._aplicar(datos, tipo);
     }
   }
 
   /**
    * @param {object} cobro
+   * @param {string} [tipo]
    * @returns {void}
    */
-  _aplicar(cobro) {
+  _aplicar(cobro, tipo = this.cobro ? "cobro" : "recuperado") {
     if (this._terminada) {
       return;
     }
-    const tipo = this.cobro ? "cobro" : "recuperado";
+    // Un evento retenido o una respuesta retrasada pueden traer un estado anterior.
+    if (
+      this.cobro &&
+      (cobro.numero_de_pagos < this.cobro.numero_de_pagos ||
+        (cobro.numero_de_pagos === this.cobro.numero_de_pagos &&
+          cobro.hora_servidor < this.cobro.hora_servidor))
+    ) {
+      return;
+    }
     this.cobro = cobro;
     this.desfase = desfase(cobro, Date.now() / 1000);
     this._al_recibir({ tipo, escucha: this, cobro });
   }
 
   /**
-   * @param {number} espera
    * @returns {void}
    */
-  _consultar_luego(espera) {
-    if (this._terminada || this.canal === "abierto") {
+  _consultar_luego() {
+    if (this._terminada || this._consulta_en_curso) {
       return;
     }
-    window.clearTimeout(this._consulta);
-    this.consultando = true;
+    this._parar_consulta();
+    const espera = this.canal === "abierto" ? CONSULTA_CON_CANAL_MS : CONSULTA_MS;
     this._consulta = window.setTimeout(() => {
       void this._consultar();
     }, espera);
@@ -207,12 +202,15 @@ export class Escucha {
    * @returns {Promise<void>}
    */
   async _consultar() {
-    if (this._terminada || this.canal === "abierto") {
+    if (this._terminada || this._consulta_en_curso) {
       return;
     }
+    this._parar_consulta();
+    this._consulta_en_curso = true;
     console.info(`escucha ${this.id}: consulta`);
     const resultado = await ver_cobro(this.id);
-    if (this._terminada || this.canal === "abierto") {
+    this._consulta_en_curso = false;
+    if (this._terminada) {
       return;
     }
     if (resultado.cobro) {
@@ -222,13 +220,15 @@ export class Escucha {
         cobro.fin_ventana != null &&
         cobro.hora_servidor >= cobro.fin_ventana
       ) {
+        if (this.cobro) {
+          this._aplicar(cobro);
+        }
         console.info(`escucha ${this.id}: fin`);
         this._al_recibir({ tipo: "fin", escucha: this, cobro });
         this.terminar();
         return;
       }
       if (!this.cobro) {
-        this._parar_consulta();
         this._aplicar(cobro);
         return;
       }
@@ -236,7 +236,7 @@ export class Escucha {
       if (this._fuente && this._fuente.readyState === EventSource.CLOSED) {
         this._programar_reintento();
       }
-      this._consultar_luego(CONSULTA_MS);
+      this._consultar_luego();
       return;
     }
     if (resultado.no_existe) {
@@ -245,7 +245,7 @@ export class Escucha {
       return;
     }
     if (resultado.sin_conexion) {
-      this._consultar_luego(CONSULTA_MS);
+      this._consultar_luego();
     }
   }
 
@@ -271,7 +271,6 @@ export class Escucha {
   _parar_consulta() {
     window.clearTimeout(this._consulta);
     this._consulta = 0;
-    this.consultando = false;
   }
 
   /**
@@ -318,6 +317,7 @@ export class Escuchas {
    *   vencido: (cobro: object) => void,
    *   error: () => void,
    *   fin: () => void,
+   *   sonido: () => void,
    * }} vistas
    */
   constructor(vistas) {
@@ -547,7 +547,7 @@ export class Escuchas {
     const nuevos = this._avisados.nuevos(aviso.cobro);
     for (const pago of nuevos) {
       if (!this._sin_sonido) {
-        sonar();
+        this._vistas.sonido();
         vibrar();
       }
       if (en_pantalla) {

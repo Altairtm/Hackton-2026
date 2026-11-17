@@ -9,7 +9,7 @@ from collections.abc import Callable
 
 import pytest
 from conftest import abrir, canales, reloj, sonidos, tocar
-from playwright.sync_api import Page, Route, expect
+from playwright.sync_api import Page, Request, Route, expect
 from servidor_simulado import ServidorSimulado
 
 
@@ -122,6 +122,16 @@ def _esperar_cerrado(pagina: Page, id_cobro: str) -> None:
     )
 
 
+def _esperar_abierto(pagina: Page, id_cobro: str) -> None:
+    pagina.wait_for_function(
+        """(id) => window.__canales.some((canal) => {
+          return canal.url.includes(id) && canal.readyState === 1;
+        })""",
+        arg=id_cobro,
+        timeout=5_000,
+    )
+
+
 def _abortar_consulta(id_cobro: str) -> Callable[[Route], None]:
     """Corta solo la consulta del cobro. El canal de eventos sigue su camino."""
 
@@ -163,10 +173,10 @@ def test_mientras_el_canal_esta_cortado_se_ve_reconectando_sin_quitar_el_qr(
     expect(pagina.locator('[data-prueba="qr"]')).to_be_visible()
 
 
-def test_al_volver_el_canal_se_deja_de_consultar_y_se_quita_reconectando(
+def test_al_volver_el_canal_se_consulta_a_los_8_segundos_y_se_quita_reconectando(
     pagina: Page, servidor: ServidorSimulado
 ) -> None:
-    """Al abrirse de nuevo el canal se quita el aviso y la consulta (spec 002, RF-031)."""
+    """Al reconectar se quita el aviso y cambia la cadencia (spec 002, C-4, RF-031)."""
     reloj(pagina, _HORA)
     abrir(pagina, servidor)
     id_cobro = "CanalCortado"
@@ -175,24 +185,157 @@ def test_al_volver_el_canal_se_deja_de_consultar_y_se_quita_reconectando(
     assert _cobrar(pagina, servidor) == id_cobro
     expect(pagina.locator('[data-prueba="reconectando"]')).to_be_visible()
     ruta_consulta = f"{servidor.origen}/api/cobros/{id_cobro}"
+    peticiones: list[Request] = []
+    pagina.on("request", lambda peticion: peticiones.append(peticion))
     with pagina.expect_request_finished(lambda peticion: peticion.url == ruta_consulta):
         pagina.clock.run_for(3_000)
     assert _consultas(servidor, id_cobro)
     _esperar_cerrado(pagina, id_cobro)
     servidor.permitir_canal(id_cobro)
-    pagina.clock.run_for(15_000)
-    pagina.wait_for_function(
-        """(id) => window.__canales.some((canal) => {
-          return canal.url.includes(id) && canal.readyState === 1;
-        })""",
-        arg=id_cobro,
-        timeout=5_000,
-    )
+    pagina.clock.run_for(12_000)
+    _esperar_abierto(pagina, id_cobro)
     expect(pagina.locator('[data-prueba="reconectando"]')).to_be_hidden()
+    for peticion in peticiones:
+        if peticion.url == ruta_consulta:
+            respuesta = peticion.response()
+            assert respuesta is not None and respuesta.finished() is None
     hechas = len(_consultas(servidor, id_cobro))
-    pagina.clock.run_for(9_000)
+    pagina.clock.run_for(7_999)
     assert len(_consultas(servidor, id_cobro)) == hechas
+    with pagina.expect_request_finished(
+        lambda peticion: peticion.url == ruta_consulta, timeout=3_000
+    ):
+        pagina.clock.run_for(1)
+    assert len(_consultas(servidor, id_cobro)) == hechas + 1
     assert any(canal["estado"] == "OPEN" for canal in canales(pagina))
+
+
+def test_con_el_canal_abierto_y_mudo_la_consulta_avisa_y_suena(
+    pagina: Page, servidor: ServidorSimulado
+) -> None:
+    """El GET avisa y suena aunque el canal siga abierto y mudo (spec 002, C-4)."""
+    reloj(pagina, _HORA)
+    servidor.fijar_hora(_HORA)
+    id_cobro = "CanalMudo"
+    servidor.responder_crear(cuerpo=servidor.cobro_de_prueba(id=id_cobro))
+    servidor.dejar_canal_mudo(id_cobro)
+    abrir(pagina, servidor)
+    assert _cobrar(pagina, servidor) == id_cobro
+    _esperar_abierto(pagina, id_cobro)
+    servidor.agregar_pago(id_cobro, 25.5)
+    pagina.clock.run_for(7_999)
+    assert _consultas(servidor, id_cobro) == []
+    expect(pagina.locator('[data-prueba="vista-qr"]')).to_be_visible()
+    ruta = f"{servidor.origen}/api/cobros/{id_cobro}"
+    with pagina.expect_request_finished(lambda peticion: peticion.url == ruta, timeout=3_000):
+        pagina.clock.run_for(1)
+    expect(pagina.locator('[data-prueba="vista-pagado"]')).to_be_visible()
+    expect(pagina.locator('[data-prueba="reconectando"]')).to_be_hidden()
+    assert sonidos(pagina) == 1
+    assert [canal["estado"] for canal in canales(pagina)] == ["OPEN"]
+
+
+def test_el_pago_por_el_canal_no_se_repite_al_consultar_con_el_canal_abierto(
+    pagina: Page, servidor: ServidorSimulado
+) -> None:
+    """El mismo pago por SSE y GET avisa una vez, sin cortar el canal (spec 002, C-4)."""
+    reloj(pagina, _HORA)
+    servidor.fijar_hora(_HORA)
+    abrir(pagina, servidor)
+    id_cobro = _cobrar(pagina, servidor)
+    _esperar_abierto(pagina, id_cobro)
+    servidor.agregar_pago(id_cobro, 25.5)
+    expect(pagina.locator('[data-prueba="vista-pagado"]')).to_be_visible()
+    assert sonidos(pagina) == 1
+    tocar(pagina, "mostrar-qr")
+    ruta = f"{servidor.origen}/api/cobros/{id_cobro}"
+    with pagina.expect_request_finished(lambda peticion: peticion.url == ruta, timeout=3_000):
+        pagina.clock.run_for(8_000)
+    expect(pagina.locator('[data-prueba="vista-qr"]')).to_be_visible()
+    assert sonidos(pagina) == 1
+    assert [canal["estado"] for canal in canales(pagina)] == ["OPEN"]
+
+
+def test_un_evento_vencido_retenido_no_quita_el_pago_avisado_por_la_consulta(
+    pagina: Page, servidor: ServidorSimulado
+) -> None:
+    """Un evento retenido de antes del pago no reemplaza Pago recibido (spec 002, C-4)."""
+    reloj(pagina, _HORA)
+    servidor.fijar_hora(_HORA)
+    abrir(pagina, servidor)
+    id_cobro = _cobrar(pagina, servidor)
+    _esperar_abierto(pagina, id_cobro)
+    servidor.fijar_hora(_HORA + 600)
+    vencido = servidor.cobros[id_cobro]
+    servidor.agregar_pago(id_cobro, 25.5, avisar=False)
+    pagina.clock.run_for(8_000)
+    pagado = pagina.locator('[data-prueba="vista-pagado"]')
+    expect(pagado).to_be_visible(timeout=3_000)
+    pagina.evaluate(
+        """() => window.__canales[0].addEventListener("vencido", () => {
+          window.__vencido_entregado = true;
+        })"""
+    )
+    servidor.emitir(id_cobro, "vencido", vencido)
+    pagina.wait_for_function("() => window.__vencido_entregado", timeout=3_000)
+    expect(pagado).to_be_visible(timeout=3_000)
+    assert sonidos(pagina) == 1
+
+
+def test_la_ultima_consulta_avisa_el_pago_y_cierra_el_canal_mudo(
+    pagina: Page, servidor: ServidorSimulado
+) -> None:
+    """La consulta final avisa un pago de la ventana antes de cerrarla (spec 002, C-4)."""
+    reloj(pagina, _HORA)
+    servidor.fijar_hora(_HORA)
+    id_cobro = "UltimaConsulta"
+    servidor.responder_crear(cuerpo=servidor.cobro_de_prueba(id=id_cobro))
+    servidor.dejar_canal_mudo(id_cobro)
+    abrir(pagina, servidor)
+    assert _cobrar(pagina, servidor) == id_cobro
+    _esperar_abierto(pagina, id_cobro)
+    servidor.fijar_hora(_HORA + 1_199)
+    servidor.agregar_pago(id_cobro, 25.5)
+    servidor.fijar_hora(_HORA + 1_200)
+    pagina.clock.run_for(8_000)
+    expect(pagina.locator('[data-prueba="vista-pagado"]')).to_be_visible(timeout=3_000)
+    _esperar_cerrado(pagina, id_cobro)
+    pagina.clock.run_for(16_000)
+    assert len(_consultas(servidor, id_cobro)) == 1
+    assert sonidos(pagina) == 1
+
+
+def test_un_corte_y_una_reapertura_no_solapan_una_consulta_pendiente(
+    pagina: Page, servidor: ServidorSimulado
+) -> None:
+    """El cambio de cadencia respeta el único GET en curso por cobro (spec 002, C-4)."""
+    reloj(pagina, _HORA)
+    servidor.fijar_hora(_HORA)
+    abrir(pagina, servidor)
+    id_cobro = _cobrar(pagina, servidor)
+    _esperar_abierto(pagina, id_cobro)
+    ruta = f"{servidor.origen}/api/cobros/{id_cobro}"
+    pendientes: list[Route] = []
+    pagina.route(ruta, lambda consulta: pendientes.append(consulta))
+    with pagina.expect_request(ruta, timeout=3_000):
+        pagina.clock.run_for(8_000)
+    servidor.cortar_canal(id_cobro, rechazar_con=503)
+    expect(pagina.locator('[data-prueba="reconectando"]')).to_be_visible()
+    _esperar_cerrado(pagina, id_cobro)
+    pagina.clock.run_for(3_000)
+    servidor.permitir_canal(id_cobro)
+    pagina.clock.run_for(12_000)
+    _esperar_abierto(pagina, id_cobro)
+    pagina.clock.run_for(8_000)
+    assert len(pendientes) == 1
+    servidor.agregar_pago(id_cobro, 25.5, avisar=False)
+    pendientes[0].continue_()
+    pagina.unroute(ruta)
+    expect(pagina.locator('[data-prueba="vista-pagado"]')).to_be_visible()
+    with pagina.expect_request_finished(lambda peticion: peticion.url == ruta, timeout=3_000):
+        pagina.clock.run_for(8_000)
+    assert len(_consultas(servidor, id_cobro)) == 2
+    assert sonidos(pagina) == 1
 
 
 def test_si_el_servidor_rechaza_el_canal_se_sigue_con_la_consulta(

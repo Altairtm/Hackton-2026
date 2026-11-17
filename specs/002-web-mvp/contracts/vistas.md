@@ -14,7 +14,7 @@ RF-001 a RF-078 (cada fila cita los suyos).
 |---|---|---|
 | Nombre "PAGO FÁCIL", en todas las vistas | `marca` | RF-060 |
 | Aviso "Reconectando…" (sobre las vistas del cobro en pantalla) | `reconectando` | RF-032 |
-| Aviso "Toca para activar el sonido" (C2) | `activar-sonido` | RF-054 |
+| Aviso «Toca para activar el sonido» al recuperar cobros o si el navegador rechaza el aviso sonoro | `activar-sonido` | RF-054 |
 | Aviso de pago de un cobro anterior (C2): monto recibido y concepto; se cierra al tocarlo | `aviso-anterior` | RF-045, RF-075 |
 
 ## 4. Vistas

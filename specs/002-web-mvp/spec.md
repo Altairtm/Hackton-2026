@@ -110,7 +110,7 @@ La spec se aprueba completa, pero se construye en dos cortes. Cada historia, esc
 
 **Por qué esta prioridad:** es la "reacción visible al resultado" que exigen las reglas y el momento central de la demo.
 
-**Prueba independiente:** con la vista QR abierta, pagar $0.01 desde la app del banco; el celular suena y muestra "Pago recibido" con el monto y el concepto en menos de 2 segundos después de que el servidor emite el aviso.
+**Prueba independiente:** con la vista QR abierta, un canal que entrega los eventos en vivo y el sonido habilitado, pagar $0.01 desde la app del banco. El celular suena y muestra "Pago recibido" con el monto y el concepto en menos de 2 segundos después de que el servidor emite el aviso.
 
 **Escenarios de aceptación:**
 
@@ -126,7 +126,7 @@ La spec se aprueba completa, pero se construye en dos cortes. Cada historia, esc
 
 ---
 
-### Historia 4 — No perder el aviso si se corta la conexión (Prioridad: P1) · Corte 1
+### Historia 4 — Recibir el pago si el canal se corta o queda mudo (Prioridad: P1) · Corte 1
 
 **Como** dueño, **quiero** que la pantalla se entere del pago aunque el internet del celular falle un momento, **para** no quedarme con la duda frente al cliente.
 
@@ -137,9 +137,10 @@ La spec se aprueba completa, pero se construye en dos cortes. Cada historia, esc
 **Escenarios de aceptación:**
 
 1. **Dado** la vista QR con el canal de avisos cortado, **cuando** el servidor registra un pago, **entonces** la pantalla lo descubre al consultar el estado del cobro (cada 3 segundos) y lo avisa igual: sonido y "Pago recibido".
-2. **Dado** el canal cortado, **cuando** pasa el corte, **entonces** la pantalla vuelve a abrir el canal y deja de consultar el estado.
+2. **Dado** el canal cortado, **cuando** pasa el corte, **entonces** la pantalla vuelve a abrir el canal, quita «Reconectando…» y pasa a consultar cada 8 segundos.
 3. **Dado** el canal cortado, **mientras** dura el corte, **entonces** la pantalla muestra un aviso discreto de "Reconectando…" sin quitar el QR.
 4. **Dado** que el servidor rechaza el canal porque hay demasiadas pantallas abiertas, **cuando** ocurre, **entonces** la pantalla sigue enterándose de los pagos consultando el estado.
+5. **Dado** un canal abierto cuyos eventos quedan retenidos en un proxy, **cuando** el servidor registra el pago, **entonces** la primera consulta que lo devuelve muestra «Pago recibido» y suena si el navegador permite la reproducción (C-4, C-5).
 
 ---
 
@@ -256,10 +257,10 @@ Cada RF lleva su corte: **[C1]** o **[C2]** (§1.2).
 
 - **RF-020** (Dirigido por evento) [C1]: CUANDO se muestra la vista QR, EL SISTEMA abrirá el canal de avisos del cobro.
 - **RF-021** (Ubicuo) [C1]: EL SISTEMA solo mostrará un pago como recibido cuando el servidor lo informe (principio I).
-- **RF-022** (Dirigido por evento) [C1]: CUANDO llega el aviso de un pago no avisado del cobro en pantalla, EL SISTEMA reproducirá el sonido de pago recibido.
+- **RF-022** (Dirigido por evento) [C1]: CUANDO llega el aviso de un pago no avisado del cobro en pantalla, EL SISTEMA reproducirá el sonido de pago recibido, con las condiciones de RF-054 y RF-055.
 - **RF-023** (Dirigido por evento) [C1]: CUANDO llega el aviso de un pago no avisado del cobro en pantalla, EL SISTEMA mostrará a pantalla completa, en verde, la vista Pago recibido con el monto recibido y el concepto.
 - **RF-024** (Opcional) [C1]: DONDE el celular permite vibrar, EL SISTEMA vibrará al llegar el aviso de un pago no avisado.
-- **RF-025** (Ubicuo) [C1]: EL SISTEMA reproducirá el sonido de pago recibido aunque el dueño no haya vuelto a tocar la pantalla después de pulsar Cobrar.
+- **RF-025** (Ubicuo) [C1]: EL SISTEMA intentará reproducir el sonido de pago recibido aunque el dueño no haya vuelto a tocar la pantalla después de pulsar Cobrar. Si el navegador lo rechaza, se aplica RF-054.
 - **RF-026** (Estado) [C1; Mostrar QR otra vez en C2]: MIENTRAS se muestra la vista Pago recibido, EL SISTEMA la mantendrá hasta que el dueño pulse Nuevo cobro o Mostrar QR otra vez (E-7, QA-9).
 - **RF-069** (Estado) [C2]: MIENTRAS el cobro en pantalla sigue dentro de su vigencia, EL SISTEMA mostrará en la vista Pago recibido el botón Mostrar QR otra vez (QA-9).
 - **RF-070** (Dirigido por evento) [C2]: CUANDO el dueño pulsa Mostrar QR otra vez, EL SISTEMA mostrará la vista QR del mismo cobro, con su cuenta regresiva.
@@ -268,13 +269,14 @@ Cada RF lleva su corte: **[C1]** o **[C2]** (§1.2).
 - **RF-028** (No deseado) [C1]: SI un pago de un cobro de monto fijo trae un monto distinto al pedido, ENTONCES EL SISTEMA mostrará en la vista Pago recibido el monto pedido y el monto recibido.
 - **RF-029** (Ubicuo) [C1]: EL SISTEMA avisará cada pago una sola vez, aunque vuelva a recibirlo al reconectarse o al consultar el estado.
 
-**Respaldo cuando se corta el canal**
+**Consulta del estado durante la escucha**
 
 - **RF-030** (Estado) [C1]: MIENTRAS el canal de avisos de un cobro en escucha está cortado dentro de su ventana de escucha, EL SISTEMA consultará el estado de ese cobro cada 3 segundos.
 - **RF-031** (Estado) [C1]: MIENTRAS el canal de avisos de un cobro en escucha está cortado dentro de su ventana de escucha, EL SISTEMA intentará volver a abrirlo.
 - **RF-032** (Estado) [C1]: MIENTRAS el canal de avisos del cobro en pantalla está cortado, EL SISTEMA mostrará un aviso de "Reconectando…" sin quitar el QR.
 - **RF-033** (Dirigido por evento) [C1]: CUANDO la consulta del estado trae un pago no avisado, EL SISTEMA lo avisará igual que si hubiera llegado por el canal.
 - **RF-034** (No deseado) [C1]: SI el servidor rechaza el canal por demasiadas pantallas abiertas, ENTONCES EL SISTEMA seguirá enterándose de los pagos con la consulta del estado.
+- **RF-079** (Estado) [C1]: MIENTRAS el canal de un cobro está abierto dentro de su ventana de escucha, EL SISTEMA consultará su estado cada 8 segundos. EL SISTEMA mantendrá como máximo una consulta del estado en curso por cobro, incluso al cambiar de cadencia (C-4). Los pagos encontrados se avisan según RF-033 y RF-029.
 
 **Vencimiento y fin de la escucha**
 
@@ -290,7 +292,7 @@ Cada RF lleva su corte: **[C1]** o **[C2]** (§1.2).
 - **RF-041** (Ubicuo) [C1]: EL SISTEMA mostrará el botón Nuevo cobro en las vistas QR, QR vencido, Pago recibido y Error.
 - **RF-042** (Dirigido por evento) [C1]: CUANDO el dueño pulsa Nuevo cobro, EL SISTEMA mostrará la vista Teclado con el monto y el concepto vacíos.
 - **RF-043** (Dirigido por evento) [C2]: CUANDO el dueño pulsa Nuevo cobro, EL SISTEMA seguirá escuchando el cobro que estaba en pantalla hasta el fin de su ventana de escucha (E-4).
-- **RF-044** (Dirigido por evento) [C2]: CUANDO llega el aviso de un pago no avisado de un cobro anterior, EL SISTEMA reproducirá el sonido de pago recibido.
+- **RF-044** (Dirigido por evento) [C2]: CUANDO llega el aviso de un pago no avisado de un cobro anterior, EL SISTEMA reproducirá el sonido de pago recibido, con las condiciones de RF-054 y RF-055.
 - **RF-045** (Dirigido por evento) [C2]: CUANDO llega el aviso de un pago no avisado de un cobro anterior, EL SISTEMA mostrará un aviso con el monto recibido y el concepto de ese cobro, sin quitar la vista actual ni lo que el dueño esté escribiendo.
 
 **Cancelar un cobro**
@@ -311,7 +313,7 @@ Cada RF lleva su corte: **[C1]** o **[C2]** (§1.2).
 - **RF-053** (No deseado) [C2]: SI el cobro que estaba en pantalla recibió pagos mientras la página estaba cerrada, ENTONCES EL SISTEMA los mostrará como pagados, con su número de pagos y su total recibido, sin sonido ni vibración (E-9).
 - **RF-075** (No deseado) [C2]: SI un cobro anterior recuperado recibió pagos mientras la página estaba cerrada, ENTONCES EL SISTEMA mostrará el aviso de RF-045 de cada uno, sin sonido ni vibración (QA-6).
 - **RF-076** (No deseado) [C2]: SI el celular no deja guardar los cobros en escucha, ENTONCES EL SISTEMA mostrará la vista Teclado vacía al volver a abrir la página (QA-6).
-- **RF-054** (Estado) [C2]: MIENTRAS el dueño no haya tocado la pantalla después de recuperar los cobros, EL SISTEMA mostrará el aviso "Toca para activar el sonido".
+- **RF-054** (Estado, no deseado y dirigido por evento) [C1 ante un bloqueo o al volver a la página. C2 al recuperar]: MIENTRAS el dueño no haya tocado la pantalla después de recuperar los cobros, EL SISTEMA mostrará «Toca para activar el sonido». SI el navegador rechaza reproducir el sonido de un pago nuevo, ENTONCES EL SISTEMA mostrará ese aviso y reintentará el sonido en el primer toque. CUANDO la página vuelva a estar visible o reciba `pageshow`, EL SISTEMA preparará un desbloqueo para el primer toque (C-5).
 - **RF-055** (No deseado) [C2]: SI llega un pago no avisado antes de que el dueño toque la pantalla tras recuperar los cobros, ENTONCES EL SISTEMA lo mostrará sin sonido.
 - **RF-056** (No deseado) [C2]: SI el servidor ya no conoce un cobro anterior recuperado, ENTONCES EL SISTEMA dejará de escucharlo.
 
@@ -333,7 +335,7 @@ Cada RF lleva su corte: **[C1]** o **[C2]** (§1.2).
 - **RF-064** (Ubicuo) [C1]: EL SISTEMA tomará la dirección del servidor de un único valor de configuración.
 - **RF-077** (Ubicuo) [C1]: EL SISTEMA mostrará el concepto, los mensajes del servidor y los datos guardados en el celular solo como texto, sin interpretarlos como contenido de la página (QA-8).
 
-> Los RF se renumeraron al aplicar la entrevista. Los RF-065 a RF-077 salieron de la QA (QA-5 a QA-10), y el RF-078 del cambio C-3. Se colocaron en su grupo para leerlos junto a los requisitos con los que se relacionan.
+> Los RF se renumeraron al aplicar la entrevista. Los RF-065 a RF-077 salieron de la QA (QA-5 a QA-10), el RF-078 del cambio C-3 y el RF-079 del C-4. Se colocaron en su grupo para leerlos junto a los requisitos con los que se relacionan.
 
 ### 3.2 Entidades clave
 
@@ -367,6 +369,8 @@ La pantalla no crea datos de negocio: muestra los del servidor.
 | El cliente escanea con la cámara normal | No paga: la pantalla siempre indica usar la opción CoDi de la app del banco. | RF-017 |
 | **Falla del aviso de pey** (no llega al servidor) | La resuelve el servidor (consulta de respaldo, spec 001); la pantalla recibe el pago por el canal igual. | RF-022, RF-023 |
 | Corte del canal de avisos | Consulta del estado cada 3 s, aviso "Reconectando…" y reintento del canal; el pago se avisa igual. | RF-030 a RF-033 |
+| Canal abierto con eventos retenidos | Consulta del estado cada 8 s. El pago se avisa una vez aunque el evento llegue después. | RF-079, RF-033, RF-029 |
+| El navegador rechaza el sonido de un pago | Se ve el pago y «Toca para activar el sonido». El primer toque reintenta el sonido. | RF-023, RF-054 |
 | Demasiadas pantallas abiertas desde la misma conexión (más de 10 canales por IP) | El servidor rechaza el canal; la pantalla sigue con la consulta del estado cada 3 s. Con más de 10 cobros en escucha (más de 10 cobros en 20 minutos, desde el corte 2) pasa seguido y multiplica las consultas a pey. **Limitación aceptada** (QA-3), hasta un issue por crear. | RF-034 |
 | El mismo pago llega dos veces (reconexión o consulta) | Se muestra una sola vez. | RF-029 |
 | **QR reutilizado** (varios pagos al mismo QR) | Cada pago nuevo suena y se muestra con su monto. Desde el corte 2, también con "Pago n" y el total recibido, y el dueño puede volver a mostrar el QR mientras siga vigente. | RF-022, RF-023, RF-027, RF-069, RF-070 |
@@ -414,7 +418,7 @@ La pantalla no crea datos de negocio: muestra los del servidor.
 ## 6. Criterios de éxito *(obligatorio)*
 
 - **CE-001** [C1]: desde un Android con Chrome y desde un iPhone con Safari, un cobro real de $0.01 se teclea, se genera, se paga desde la app de un banco y el celular suena y muestra "Pago recibido", de punta a punta.
-- **CE-002** [C1]: el celular suena y muestra "Pago recibido" en menos de 2 segundos después de que el servidor emite el aviso de pago.
+- **CE-002** [C1]: con el canal entregando eventos en vivo y el sonido habilitado, el celular suena y muestra "Pago recibido" en menos de 2 segundos después de que el servidor emite el aviso de pago.
 - **CE-003** [C1]: con el canal de avisos cortado, un pago se avisa en menos de 6 segundos después de que el servidor lo registra.
 - **CE-004** [C1]: un cobro de $25.50 con concepto vacío se pide con 6 toques (2, 5, punto, 5, 0 y Cobrar).
 - **CE-005** [C1]: después de pulsar Cobrar, la vista Generando QR aparece en menos de 0.1 segundos.
@@ -429,6 +433,8 @@ La pantalla no crea datos de negocio: muestra los del servidor.
 - **CE-014** [C2]: después de recargar la página con un cobro en escucha y tocar la pantalla, un pago a ese cobro suena y se muestra; un pago que llegó con la página cerrada se muestra sin sonar.
 - **CE-015** [C1]: un cobro con el concepto `<script>alert(1)</script>` muestra ese texto tal cual y no ejecuta nada, comprobado con pruebas automáticas.
 - **CE-016** [C1]: con el C-2 aplicado y un primer cobro que tarda 9 segundos en crearse, la cuenta regresiva arranca en 9:51 (con 2 segundos de margen), comprobado con pruebas automáticas con reloj controlado.
+- **CE-017** [C1]: con el canal abierto y mudo, el primer GET que devuelve el pago lo muestra y lo hace sonar con reproducción habilitada. La prueba con reloj controlado dispara la primera consulta a los 8 segundos y comprueba que el canal sigue abierto (C-4).
+- **CE-018** [C1]: si `play()` rechaza un pago nuevo, la pantalla muestra «Pago recibido» y «Toca para activar el sonido». Al tocar, la pantalla vuelve a llamar a `play()` y quita el aviso cuando el intento se inicia, comprobado con pruebas automáticas (C-5).
 
 ---
 
@@ -438,7 +444,7 @@ La pantalla no crea datos de negocio: muestra los del servidor.
 
 - El servidor de la spec 001 está completo (corte M0 y corte 2: ventana de gracia, monto libre y cancelación) y su contrato es el de `specs/001-backend-mvp/contracts/`. La pantalla no inventa reglas que ya decide el servidor: el máximo del monto, el límite de cobros por minuto y los mensajes de error vienen del servidor.
 - Los mensajes de error del servidor ya están escritos para el dueño (principio VII, decisión DP-9 del plan 001), así que la pantalla los muestra tal cual.
-- Los navegadores de celular no dejan sonar audio hasta que el usuario toca la pantalla. El toque a Cobrar o a Monto libre cuenta como ese permiso (issue #64); después de recargar la página hace falta otro toque (RF-054). Si en algún navegador no basta, se anota en el plan.
+- Los navegadores de celular pueden exigir un toque para reproducir audio. Cobrar o Monto libre pueden desbloquearlo. Al recuperar cobros, al volver a la página o cuando el navegador rechaza el sonido, se aplica RF-054.
 - El celular puede estar en silencio o con el volumen bajo. La vista verde y la vibración (donde exista) siguen avisando. El plan comprueba si el interruptor de silencio del iPhone calla el sonido de la página.
 - La vibración solo existe en algunos celulares; en Safari de iPhone no está disponible, por eso RF-024 es opcional. Lo mismo pasa con mantener la pantalla encendida (RF-058).
 - El aviso de pago de un cobro anterior (RF-045) se cierra cuando el dueño lo toca. La QA puede cuestionarlo.
@@ -486,12 +492,14 @@ La pantalla no crea datos de negocio: muestra los del servidor.
 - Cancelar cobro solo aparece con el cobro *pendiente*, igual que la regla del servidor (spec 001, RF-024).
 - Lo que se recuerda para recuperar los cobros vive en el mismo celular; recuperarlos en otro equipo requiere cuentas (#24, §5).
 
-### 8.2 Cambios a otras specs
+### 8.2 Cambios a specs aprobadas
 
 | # | Spec | Cambio propuesto | Origen | Estado |
 |---|---|---|---|---|
 | C-2 | 001 | RF-008 agrega "la hora actual del servidor" a cada cobro que se devuelve (crear, ver y cancelar) y a los eventos del canal, para que la cuenta regresiva no dependa del reloj del celular (RF-019). Afecta a RF-008, a `contracts/crear-cobro.md` (objeto cobro) y a `contracts/canal-avisos.md`. Se aplica antes del corte 1 de esta spec. | QA-2 | Aprobado por Hugo el 2026-11-15 y aplicado el mismo día en la 001: campo `hora_servidor` (plan 001 TK-6, tasks 001 F9) |
 | C-3 | 002 (esta) | Nuevo RF (No deseado) [C1]: SI el cobro creado llega sin imagen del QR, ENTONCES EL SISTEMA mostrará en la vista Teclado "No se pudo mostrar el QR. Intenta de nuevo." y conservará el monto y el concepto. Más su fila en §4, y RF-015 lo excluye. | DP-2 y DP-3 del plan (la pantalla usa la imagen de pey, que puede llegar vacía) | Aprobado y aplicado por Hugo el 2026-11-15 (RF-078, RF-014, RF-015, §4, historia 1 escenario 12) |
+| C-4 | 002 (esta) | Consulta cada 8 s con SSE abierto, un solo GET en curso por cobro y el mismo registro de pagos avisados (RF-079, CE-017). | Eventos retenidos por el túnel rápido de Cloudflare en las pruebas de Android e iPhone. | Aprobado por Hugo el 2026-11-16. Verificación manual pendiente. |
+| C-5 | 002 (esta) | Amplía RF-054 para el rechazo de `play()`, el reintento con un toque y el desbloqueo al volver a la página (CE-018). | El navegador podía rechazar el sonido sin mostrar el aviso para activarlo. | Aprobado por Hugo el 2026-11-16. Verificación manual pendiente. |
 
 ### 8.3 Propuestas
 

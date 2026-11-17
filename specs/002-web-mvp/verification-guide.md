@@ -553,3 +553,71 @@ El log del backend lo corrobora en lo que se alcanzó a ver: al menos tres pagos
 - Android y iPhone con la web en HTTPS: sonido y vibración reales, el iPhone en silencio (TK-2) y el modo avión (TK-1).
 - Pantalla encendida 10 minutos (CE-011, quickstart §6).
 - Tiempos de CE-001 y CE-006 con el webhook activo.
+
+## C-4 y C-5 · Consulta con SSE abierto y recuperación del sonido
+
+Fecha de implementación 2026-11-16. Mientras el canal está abierto, la web consulta el cobro cada 8 s. Si el canal se corta o el cobro se queda sin canal asignado, consulta cada 3 s. Hay un solo GET en curso por cobro. SSE y GET comparten `Avisados`, incluso si el proxy entrega luego los eventos acumulados.
+
+Si el navegador rechaza el sonido de un pago, la pantalla muestra «Toca para activar el sonido» y lo reintenta al tocar. Al volver a la página, el primer toque vuelve a desbloquear el audio. Cada intento registra su resultado en la consola. Se sigue usando el WAV con `HTMLAudioElement` y se pide la sesión `playback` donde esté disponible. Los pagos recuperados y los que se avisan antes del primer toque de F8 se muestran en silencio.
+
+### Resultados automáticos
+
+Las pruebas nuevas se ejecutaron antes de implementar. Se reprodujeron el canal abierto que no descubre el pago y el rechazo de audio sin aviso, en Chromium y WebKit. Con el cambio pasan los casos de canal mudo, pago duplicado por SSE y GET, consulta pendiente al reconectar, evento vencido atrasado, última consulta de la ventana, rechazo y reintento de audio, vuelta a la página, sesión de audio opcional y recuperación de F8.
+
+- `uv run --directory backend pytest ../web -q` → **265 passed, 32 skipped** por selección de motor. Playwright usó Chromium y WebKit, el reloj controlado y el servidor simulado.
+- `uv run --directory backend ruff check --config pyproject.toml ../web` → pasó.
+- `uv run --directory backend ruff format --config pyproject.toml --check ../web` → 12 archivos con formato correcto.
+- `uv run --directory backend pytest -q` → **109 passed** en una copia temporal del backend sin `.env`, con el transporte de pey simulado.
+- `uv run --directory backend ruff check .` → pasó.
+- `uv run --directory backend ruff format --check .` → 20 archivos con formato correcto.
+
+### Prueba pendiente con dos celulares
+
+1. Expón la web y el backend mediante HTTPS con un túnel que entregue SSE en vivo. Por ejemplo, con los puertos locales del [quickstart](quickstart.md), abre cada reenvío en una terminal y conserva las dos URL HTTPS que imprime el servicio. [Documentación de localhost.run](https://localhost.run/docs/http-tunnels) · [Acceso gratuito con `nokey`](https://localhost.run/docs/faq#i-dont-want-to-use-an-ssh-key)
+
+   ```bash
+   ssh -R 80:127.0.0.1:8000 nokey@localhost.run
+   ssh -R 80:127.0.0.1:5173 nokey@localhost.run
+   ```
+
+2. Arranca el backend con `WEB_ORIGIN` igual al origen HTTPS de la web. Sirve `web/` como indica el quickstart y apunta `servidor` de `web/config.js` al origen HTTPS del backend durante la prueba.
+3. En el celular del negocio, abre la URL de la web, crea un cobro de **$0.01 MXN** con autorización vigente de Hugo y deja el QR en pantalla. Desde la computadora puedes verificar el túnel con este comando, reemplazando el dominio y el id por los del cobro. `event: estado` debe llegar mientras la conexión sigue abierta. En la prueba de Hugo, el túnel rápido de Cloudflare retuvo los eventos hasta el cierre. Para esta comprobación usa un túnel que entregue el evento antes de cerrar.
+
+   ```bash
+   curl -NsS --max-time 18 'https://DOMINIO_API/api/cobros/ID/eventos'
+   ```
+
+4. En el segundo celular, paga con una cuenta propia desde la opción CoDi de la app del banco. En el celular del negocio, mantén la página abierta en el QR. Al registrarse el pago en el backend, verifica que aparece «Pago recibido» con $0.01 y que el sonido se oye una sola vez. Si aparece «Toca para activar el sonido», toca y confirma que el sonido se reintenta y el aviso se quita.
+5. Repite con Android y iPhone como pantalla del negocio. En iPhone, comprueba con el silenciador activado y anota si el sonido se oye. Para probar el regreso, vuelve al navegador desde otra app antes de un pago nuevo, toca una vez y confirma que el siguiente aviso suena. Para probar F8, recarga después de un pago y comprueba que el pago recuperado se ve en silencio, incluso al tocar para activar el sonido.
+
+Commit sugerido
+
+```text
+fix(002): consultar el cobro aunque el canal esté mudo y avisar si el navegador bloquea el sonido
+```
+
+### Revisión de Claude de C-4 y C-5 (2026-11-16)
+
+Claude revisó el diff de `escucha.js` (consulta cada 8 s con canal abierto, un solo GET en curso, descarte de estados viejos), `app.js` y `sonido.js` (intento de sonido con resultado, reintento con un toque, desbloqueo al volver a la página, `audioSession`), el simulado (`dejar_canal_mudo`) y las pruebas nuevas. No hizo falta cambiar código.
+
+- **Resultados repetidos por Claude:** web **265 passed, 32 skipped** (135 s); backend **109 passed**; `ruff check` y `ruff format --check` limpios en web y backend. Coinciden con los de Codex.
+- **Seguridad:** sin `innerHTML`, `eval` ni `new Function` en `web/js`; sin secretos; `localStorage` solo en `memoria.js`; `audioSession` solo en `sonido.js`, dentro de `try/catch`.
+- **Las pruebas no dependen de `web/config.js`.** Con `config.js` apuntando a un túnel (como estaba durante la prueba real), la suite pasó igual: el simulado ahora siempre sirve su propio `config.js`.
+- **Causa de lo que se vio en Android e iPhone:** el túnel rápido de Cloudflare retiene el canal de eventos hasta que se cierra (8 eventos de 1 por segundo llegaron juntos a los 8.3 s; con `localhost.run` llegaron uno por segundo). La consulta de seguridad de C-4 cubre ese caso, y también el de un proxy con búfer en producción (#65).
+- **Costo en el backend:** cada consulta de la web (`GET /api/cobros/{id}`) pide a pey los pagos como mucho cada 3 s por cobro (`intervalo_minimo=3`). Con tres canales abiertos son tres consultas más cada 8 s; no cambia el límite hacia pey.
+- **Estado de C-4 y C-5:** el documento los marca «Aprobado por Hugo el 2026-11-16». Claude no pudo comprobar esa aprobación; AGENTS.md pide que cada `C-n` se apruebe por separado.
+
+### Resultado de la prueba con celulares (2026-11-16)
+
+Con el celular del negocio en el QR, sin salir de la página, y el pago desde otro dispositivo:
+
+- **Antes de C-4 y C-5:** con un túnel rápido de Cloudflare el pago se registró en el backend, pero la pantalla se quedó en el QR y el aviso solo apareció al salir de la página, sin sonido. El túnel retenía el canal de eventos hasta cerrarse (8 eventos de 1 por segundo llegaron juntos a los 8.3 s).
+- **iPhone (Safari), backend por `localhost.run` (canal en vivo):** Hugo reportó que funciona: aparece «Pago recibido» y suena.
+- **Android (Chrome), backend por un túnel rápido de Cloudflare (canal retenido):** Hugo reportó que funciona. Como el túnel retiene los eventos, el aviso llega por la consulta de seguridad de C-4, hasta unos 8 s después de registrarse el pago, y suena con la pantalla en primer plano.
+
+### Sigue pendiente
+
+- **No se midió «menos de 2 s»** (CE-001, CE-002, #64): hace falta el webhook y un canal en vivo, en el despliegue de #65.
+- Vibración en Android, iPhone en silencio con el interruptor activado (TK-2), modo avión (TK-1) y pantalla encendida 10 minutos (CE-011).
+
+Los túneles gratuitos sirvieron para las pruebas pero son frágiles: el de `localhost.run` se cortó cada ~16 minutos, y el rápido de Cloudflare no transmite eventos. Para repetir estas pruebas conviene el despliegue real de #65.

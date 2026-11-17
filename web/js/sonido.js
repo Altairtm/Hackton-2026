@@ -1,4 +1,14 @@
+try {
+  const sesion = navigator.audioSession;
+  if (sesion) {
+    sesion.type = "playback";
+  }
+} catch {
+  // La sesión es opcional. El elemento de audio puede seguir reproduciendo (R-7).
+}
+
 const audio = new Audio(URL.createObjectURL(wav_dos_tonos()));
+let ultimo_intento = 0;
 
 /**
  * WAV PCM de unos 0.6 s con dos tonos, armado en memoria (spec 002, R-7, DP-10).
@@ -69,7 +79,6 @@ function escribir_u16(buffer, offset, valor) {
 
 function rebobinar() {
   try {
-    audio.pause();
     audio.currentTime = 0;
   } catch {
     // Sin metadatos el navegador no deja rebobinar; el play sigue (R-7).
@@ -78,20 +87,26 @@ function rebobinar() {
 
 /**
  * @param {number} volumen 0 para desbloquear sin que se oiga, 1 para el aviso
+ * @returns {Promise<boolean>}
  */
-function reproducir(volumen) {
-  rebobinar();
+async function reproducir(volumen) {
+  const intento = ++ultimo_intento;
+  const silencio = volumen === 0;
+  const motivo = silencio ? "desbloqueo" : "aviso";
   try {
+    rebobinar();
+    audio.muted = silencio;
     audio.volume = volumen;
-    const promesa = audio.play();
-    if (promesa && typeof promesa.catch === "function") {
-      promesa.catch(() => {});
-    }
-    if (volumen === 0) {
+    await audio.play();
+    // Pausar antes de que play se resuelva rechaza la promesa con AbortError.
+    if (silencio && intento === ultimo_intento) {
       audio.pause();
     }
-  } catch {
-    // Un rechazo del audio no debe tapar el aviso visual (R-7).
+    console.info(`sonido: ${motivo} iniciado`);
+    return true;
+  } catch (error) {
+    console.info(`sonido: ${motivo} rechazado (${error?.name || "Error"})`);
+    return false;
   }
 }
 
@@ -99,19 +114,19 @@ function reproducir(volumen) {
  * Primer toque: reproduce en silencio para que el navegador deje sonar después
  * (spec 002, RF-025).
  *
- * @returns {void}
+ * @returns {Promise<boolean>}
  */
 export function desbloquear() {
-  reproducir(0);
+  return reproducir(0);
 }
 
 /**
- * Reproduce el sonido de pago desde el inicio (spec 002, RF-022).
+ * Reproduce el sonido de pago y devuelve si se inició (spec 002, RF-022, RF-054).
  *
- * @returns {void}
+ * @returns {Promise<boolean>}
  */
 export function sonar() {
-  reproducir(1);
+  return reproducir(1);
 }
 
 /**

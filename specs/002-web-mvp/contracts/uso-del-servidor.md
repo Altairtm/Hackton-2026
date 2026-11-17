@@ -39,13 +39,13 @@ Todas las rutas se arman como `servidor + ruta`. Es el único lugar con la direc
 
 ### Ver un cobro: `GET /api/cobros/{id}` ([contrato 001](../../001-backend-mvp/contracts/ver-cobro.md))
 
-Solo como consulta del estado: cada 3 s con el canal cortado (RF-030); al recuperar (C2, RF-051); y para saber por qué se cerró el canal (R-5).
+La pantalla consulta cada 8 s con el canal abierto (RF-079), cada 3 s con el canal cortado o sin canal asignado (RF-030, QP-1) y al recuperar (RF-051). Empieza el intervalo al abrirse el canal o al terminar una consulta. Hay como máximo una consulta en curso por cobro. La consulta pide el estado sin reutilizar la caché del navegador.
 
 | Respuesta | Qué hace la pantalla | Requisitos |
 |---|---|---|
-| 200 | Actualiza el cobro y el desfase; avisa los pagos nuevos; si la hora del servidor ≥ `fin_ventana`, termina la escucha | RF-033, RF-040 |
+| 200 | Actualiza el cobro y el desfase y avisa los pagos nuevos. Si la hora del servidor alcanza `fin_ventana`, avisa los pagos de la última respuesta del cobro en escucha y cierra el canal. En la consulta inicial de recuperación descarta los cobros fuera de ventana. | RF-029, RF-033, RF-040, RF-051, RF-079 |
 | 404 | Cobro en pantalla: vista Error. Cobro anterior: deja de escucharlo | RF-057, RF-056 |
-| Fallo de red | Sigue mostrando "Reconectando…" y reintenta en 3 s | RF-032 |
+| Fallo de red | Reintenta en 8 s si el canal sigue abierto y en 3 s si está cortado o el cobro no tiene canal. «Reconectando…» sigue el estado del canal. | RF-030, RF-032, RF-079 |
 
 ### Cancelar un cobro (C2): `POST /api/cobros/{id}/cancelar` ([contrato 001](../../001-backend-mvp/contracts/cancelar-cobro.md))
 
@@ -61,7 +61,7 @@ La pantalla abre como máximo **3 canales a la vez**: el del cobro en pantalla y
 
 | Evento | Qué hace la pantalla | Requisitos |
 |---|---|---|
-| `open` (del navegador) | Quita "Reconectando…" y detiene la consulta | RF-031, RF-032 |
+| `open` (del navegador) | Quita «Reconectando…» y pasa a la consulta cada 8 s. Si ya hay una consulta en curso, espera su resultado. | RF-031, RF-032, RF-079 |
 | `estado` | Actualiza el cobro y avisa los pagos nuevos (al reconectar puede traer pagos que llegaron durante el corte) | RF-029, RF-033 |
 | `pago` | Avisa el pago si es nuevo, con el cobro que viene en el evento | RF-022, RF-023, RF-029, RF-044, RF-045 |
 | `vencido` | Vista QR vencido si es el cobro en pantalla y no tiene pagos | RF-035 |

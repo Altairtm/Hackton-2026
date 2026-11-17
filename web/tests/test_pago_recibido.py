@@ -276,6 +276,91 @@ def test_un_pago_suena_vibra_y_pone_la_pantalla_verde_sin_tocar_nada_despues_de_
         assert len(vibraciones(pagina)) == 1
 
 
+def test_si_el_navegador_bloquea_el_sonido_avisa_y_reintenta_al_tocar(
+    pagina: Page, servidor: ServidorSimulado
+) -> None:
+    """Un NotAllowedError conserva el aviso visual y permite reintentar (spec 002, C-5)."""
+    reloj(pagina, _HORA)
+    pagina.add_init_script("window.__rechazar_sonido = true;")
+    mensajes: list[str] = []
+    pagina.on("console", lambda mensaje: mensajes.append(mensaje.text))
+    abrir(pagina, servidor)
+    id_cobro = _cobrar(pagina, servidor)
+    _esperar_abierto(pagina)
+    servidor.agregar_pago(id_cobro, 25.5)
+    expect(pagina.locator('[data-prueba="vista-pagado"]')).to_be_visible()
+    aviso = pagina.locator('[data-prueba="activar-sonido"]')
+    expect(aviso).to_have_text("Toca para activar el sonido", timeout=3_000)
+    assert sonidos(pagina) == 1
+    assert "sonido: aviso rechazado (NotAllowedError)" in mensajes
+    aviso.tap()
+    expect(aviso).to_be_visible()
+    assert sonidos(pagina) == 2
+    pagina.evaluate("() => { window.__rechazar_sonido = false; }")
+    aviso.tap()
+    expect(aviso).to_be_hidden()
+    assert sonidos(pagina) == 3
+    assert "sonido: aviso iniciado" in mensajes
+    servidor.agregar_pago(id_cobro, 1)
+    expect(pagina.locator('[data-prueba="pagado-numero"]')).to_have_text("Pago 2")
+    assert sonidos(pagina) == 4
+
+
+@pytest.mark.parametrize("regreso", ["visibilitychange", "pageshow"])
+def test_al_volver_a_la_pagina_el_primer_toque_repite_el_desbloqueo(
+    pagina: Page, servidor: ServidorSimulado, regreso: str
+) -> None:
+    """El regreso prepara un solo desbloqueo, que espera al toque (spec 002, C-5)."""
+    reloj(pagina, _HORA)
+    abrir(pagina, servidor)
+    _cobrar(pagina, servidor)
+    cuenta = pagina.evaluate("() => window.__sonidos.length")
+    pagina.evaluate(
+        """(regreso) => {
+          if (regreso === "pageshow") {
+            window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }));
+            return;
+          }
+          for (const estado of ["hidden", "visible"]) {
+            Object.defineProperty(document, "visibilityState", {
+              configurable: true, value: estado,
+            });
+            document.dispatchEvent(new Event("visibilitychange"));
+          }
+        }""",
+        regreso,
+    )
+    assert pagina.evaluate("() => window.__sonidos.length") == cuenta
+    monto = pagina.locator('[data-prueba="qr-monto"]')
+    monto.tap()
+    assert pagina.evaluate("() => window.__sonidos.length") == cuenta + 1
+    assert sonidos(pagina) == 0
+    monto.tap()
+    assert pagina.evaluate("() => window.__sonidos.length") == cuenta + 1
+
+
+@pytest.mark.parametrize(
+    "sesion, tipo",
+    [('({ type: "auto" })', "playback"), ("undefined", None), ("Object.freeze({})", None)],
+    ids=["disponible", "ausente", "solo-lectura"],
+)
+def test_la_sesion_de_audio_configura_playback_si_puede(
+    pagina: Page, servidor: ServidorSimulado, sesion: str, tipo: str | None
+) -> None:
+    """El uso opcional de audioSession no interrumpe el sonido (spec 002, C-5)."""
+    reloj(pagina, _HORA)
+    pagina.add_init_script(
+        f'Object.defineProperty(navigator, "audioSession", {{ value: {sesion} }});'
+    )
+    abrir(pagina, servidor)
+    id_cobro = _cobrar(pagina, servidor)
+    _esperar_abierto(pagina)
+    servidor.agregar_pago(id_cobro, 25.5)
+    expect(pagina.locator('[data-prueba="vista-pagado"]')).to_be_visible()
+    assert pagina.evaluate("() => navigator.audioSession?.type ?? null") == tipo
+    assert sonidos(pagina) == 1
+
+
 def test_pago_recibido_se_queda_varios_minutos(pagina: Page, servidor: ServidorSimulado) -> None:
     """La vista Pago recibido no cambia sola (spec 002, RF-026)."""
     reloj(pagina, _HORA)

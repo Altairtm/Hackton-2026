@@ -24,6 +24,9 @@ _ARRANQUE = """
       muted: this.muted,
       src: this.src,
     });
+    if (this.volume > 0 && !this.muted && window.__rechazar_sonido) {
+      return Promise.reject(new DOMException("Reproducción bloqueada", "NotAllowedError"));
+    }
     return Promise.resolve();
   };
 

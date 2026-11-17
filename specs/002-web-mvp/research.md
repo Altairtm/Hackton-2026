@@ -62,9 +62,11 @@ Cada punto tiene el formato de spec-kit: **Decisión**, **Por qué** y **Alterna
   - **Respaldo**: en cuanto llega `error`, empieza la consulta del estado con `GET /api/cobros/{id}` cada 3 s (RF-030). Esa consulta también aclara qué pasó:
     - 404: el servidor ya no conoce el cobro (RF-057, RF-056).
     - 200 con el canal `CLOSED`: lo más probable es el límite de canales (RF-034). Se sigue consultando y se intenta reabrir el canal cada 15 s (RF-031).
-  - Al llegar `open`, se detiene la consulta y se quita "Reconectando…" (RF-032).
+  - Al llegar `open`, se quita «Reconectando…» y la consulta pasa a 8 s (RF-079). Así también llegan los pagos cuando un proxy entrega las cabeceras y retiene los eventos. Se programa el siguiente GET al terminar el actual y se reaprovecha su resultado si cambia el estado del canal.
+  - Los eventos del canal y las respuestas del GET comparten `Avisados`. Un estado anterior se descarta para que un evento retenido no tape un pago ya mostrado.
   - La escucha termina con `fin`, o cuando la hora del servidor alcanza `fin_ventana` en la consulta (RF-040).
 - **Por qué**: `EventSource` viene en los navegadores de CE-001 y el servidor ya está hecho para él. La consulta cada 3 s coincide con el límite del servidor, que le pregunta a pey como mucho una vez cada 3 s por cobro.
+- **Costo con canal abierto (C-4)**. Hasta 7.5 GET por minuto en promedio por cobro con respuestas rápidas, o 22.5 por pantalla con sus tres canales abiertos. El GET y el canal comparten la última consulta a pey por cobro. El GET puede activar una consulta a pey al pasar 3 s y el canal al pasar 5 s. Por eso el número adicional de consultas a pey depende de cuándo coincidan.
 - **Alternativas consideradas**: leer el flujo con `fetch`. Daría el código de error, pero obliga a reimplementar la reconexión y el formato SSE.
 - **Limitación aceptada (QA-3 de la spec)**: el servidor admite 10 canales por IP. Con el máximo de 3 por pantalla (QP-1), solo se llega ahí con varias pantallas detrás de la misma IP; en ese caso, los canales rechazados quedan con la consulta cada 3 s. Las consultas a pey que generan esas consultas siguen siendo la limitación aceptada.
 
@@ -84,7 +86,9 @@ Cada punto tiene el formato de spec-kit: **Decisión**, **Por qué** y **Alterna
 
 - **Decisión**: el sonido lo genera la propia web.
   - Al cargar la página se arma en memoria un WAV corto (dos tonos de unos 0.6 s) y se reproduce con un `HTMLAudioElement`.
-  - **Desbloqueo**: el primer toque del dueño (Cobrar, Monto libre o "Toca para activar el sonido") reproduce el audio con volumen 0 y lo detiene. Desde ahí, los navegadores dejan reproducirlo sin otro toque (RF-025).
+  - **Desbloqueo**. El toque del dueño inicia el WAV silenciado y lo detiene una vez que se resuelve `play()`. Al volver a visible o recibir `pageshow`, se prepara un desbloqueo para el siguiente toque (RF-054).
+  - **Rechazo de reproducción (C-5)**. El resultado de `play()` se devuelve a la app y se registra con `console.info`. Si falla el aviso de un pago nuevo, se muestra «Toca para activar el sonido» y se reintenta desde el gesto. Al recuperar, los pagos siguen mostrándose en silencio hasta el primer toque.
+  - Si `navigator.audioSession` existe, se intenta fijar `type = "playback"` dentro de `try/catch`. El efecto del silenciador se verifica físicamente en el iPhone (TK-2). [Audio Session](https://www.w3.org/TR/audio-session/)
   - Es un sonido propio, así que no es componente de terceros. El sonido final es de #33.
 - **Por qué**: no hay licencia que declarar ni archivo que descargar.
 - **Riesgo a comprobar en F4**: el interruptor de silencio del iPhone. Según lo publicado, calla el audio generado con Web Audio, pero no siempre el de un elemento `<audio>`. Se comprueba en el iPhone de prueba y el resultado se anota como TK (spec §7).

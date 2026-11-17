@@ -550,7 +550,7 @@ export function mostrar_aviso_anterior(monto, concepto) {
 }
 
 /**
- * Pide un toque para poder volver a sonar tras recargar (spec 002, RF-054).
+ * Pide un toque tras recuperar cobros o cuando el navegador rechaza el sonido (spec 002, RF-054).
  *
  * @param {boolean} visible
  * @returns {void}

@@ -45,11 +45,11 @@ Esperado: web `243 passed, 32 skipped` (Chromium y WebKit; la lógica pura solo 
 
 A mano, con el backend en el puerto 8000: `web/config.js` con `servidor: "http://localhost:8000"` y la web servida con `uv run --directory backend python -m http.server 5173 --directory ../web`. Se abre **`http://localhost:5173`**, no el enlace `[::]`. Los pasos y lo esperado están en el [quickstart](../../specs/002-web-mvp/quickstart.md) y en la [guía de verificación](../../specs/002-web-mvp/verification-guide.md).
 
-Pruebas reales con CoDi, de $0.01 el 2026-11-16, en computadora: cobro, cobro anterior, cancelar, recargar y monto libre funcionaron.
+Pruebas reales con CoDi, de $0.01 el 2026-11-16: en computadora funcionaron cobro, cobro anterior, cancelar, recargar y monto libre. En un Android (Chrome) y en un iPhone (Safari), con la web por HTTPS, el celular del negocio mostró «Pago recibido» y sonó sin salir de la página. Las primeras pruebas con celulares no sonaron: un túnel retenía el canal de eventos, y de ahí salieron los cambios C-4 (consulta cada 8 s con el canal abierto) y C-5 (aviso y reintento si el navegador bloquea el sonido).
 
 ## 5. Qué quedó pendiente
 
-- **El criterio de #64 no está completo.** Falta comprobar en Android (Chrome) y en iPhone (Safari), con la web en HTTPS: sonido y vibración, el iPhone en silencio (TK-2), el modo avión (TK-1) y la pantalla encendida 10 minutos. Tampoco se pudo medir «suena en menos de 2 s»: sin webhook, pey tardó más de 30 s en reportar el primer pago. Por eso el PR usa `Refs #64` y no `Closes #64`.
+- **El criterio de #64 está casi completo.** Ya suena en Android y en iPhone, pero no se midió «en menos de 2 s»: sin webhook, pey tardó más de 30 s en reportar el primer pago, y los túneles de prueba retenían el canal o se cortaban. También falta la vibración en Android, el iPhone en silencio (TK-2), el modo avión (TK-1) y la pantalla encendida 10 minutos. Por eso el PR usa `Refs #64` y no `Closes #64`.
 - **Despliegue (#65):** poner la dirección real del servidor en `config.js` y en `WEB_ORIGIN`, y cambiar `https:` y `http://localhost:8000` de `connect-src` en `web/index.html` por el dominio exacto.
 - **Contraste de «Pago recibido»:** 4.4:1, queda para #42.
 - **Teclado físico de la computadora:** no está en la spec; hace falta un cambio `C-n` si se quiere.

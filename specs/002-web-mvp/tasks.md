@@ -243,6 +243,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **Hecho cuando**: las pruebas de `crear_cobro` de T011 y todas las de T013 pasan.
 - [X] T018 [P] Implementar el sonido y la vibración en `web/js/sonido.js` (archivo nuevo)
   - Al importar, arma en memoria un WAV PCM de unos 0.6 s con dos tonos y lo deja en un `HTMLAudioElement` con `URL.createObjectURL` (R-7, DP-10). `desbloquear()` lo reproduce con volumen 0 y lo detiene; `sonar()` lo reproduce desde el inicio con volumen 1; `vibrar()` llama a `navigator.vibrate([200, 100, 200])` solo si existe (R-8). Ningún error sale de estas funciones.
+  - C-5: registrar y devolver el resultado de `play()`. Silenciar el desbloqueo y pausar después de que se inicie. Configurar una sesión `playback` donde esté disponible.
   - **RF**: RF-022, RF-024, RF-025
   - **Dep.**: T012
   - **Hecho cuando**: las pruebas de `sonido.js` de T012 pasan en los dos celulares.
@@ -360,9 +361,10 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
 - [X] T030 [P] [US4] Escribir las pruebas del respaldo en `web/tests/test_respaldo.py`
   - `test_con_el_canal_cortado_la_consulta_cada_3_segundos_avisa_el_pago` (escenario 1, CE-003): con `reloj(pagina, hora)`, `cortar_canal(id, rechazar_con=503)` y se ve `reconectando`; `agregar_pago(id, 25.5, avisar=False)`; `run_for(3_000)` → `vista-pagado` y `sonidos` = 1. El tiempo real desde el pago, medido con Python, es menor a 3 s, así que el total queda por debajo de 6 s.
   - `test_mientras_el_canal_esta_cortado_se_ve_reconectando_sin_quitar_el_qr` (escenario 3): `reconectando` = "Reconectando…" y `qr` sigue visible.
-  - `test_al_volver_el_canal_se_deja_de_consultar_y_se_quita_reconectando` (escenario 2, QT-2): con `reloj(pagina, hora)`, `cortar_canal(id, rechazar_con=503)`; la pantalla consulta cada 3 s; `permitir_canal(id)` y `run_for(15_000)` → `canales(pagina)` muestra un canal nuevo `OPEN`, `reconectando` desaparece y, tras `run_for(9_000)`, no hay más `GET /api/cobros/{id}` en `peticiones`.
+  - `test_al_volver_el_canal_se_consulta_a_los_8_segundos_y_se_quita_reconectando` (escenario 2, QT-2, C-4): después de la reapertura se quita «Reconectando…» y se pasa al intervalo de 8 s.
   - `test_si_el_servidor_rechaza_el_canal_se_sigue_con_la_consulta` (escenario 4): `cortar_canal(id, rechazar_con=429)`; las consultas siguen cada 3 s; `permitir_canal(id)` y `run_for(15_000)` → se pide `…/eventos` otra vez (reintento cada 15 s, R-5).
   - `test_si_la_consulta_falla_por_red_se_reintenta_en_3_segundos`: con el canal cortado y la consulta abortada, `reconectando` sigue y `run_for(3_000)` vuelve a consultar.
+  - C-4: con un canal abierto y mudo, el GET de los 8 s muestra el pago y suena. Con el canal activo, el GET no vuelve a avisar el pago. Cubrir un GET pendiente al cortar y reabrir el canal, un evento atrasado y la última consulta de la ventana.
   - **RF**: RF-030, RF-031, RF-032, RF-033, RF-034
   - **Dep.**: T028
   - **Hecho cuando**: las pruebas existen y fallan porque no hay respaldo.
@@ -384,12 +386,13 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - **Hecho cuando**: todas las pruebas de T029 pasan en los dos celulares.
 - [X] T033 [US4] Implementar el respaldo de `Escucha` en `web/js/escucha.js` y el aviso "Reconectando…" en `web/js/vistas.js`
   - En `error`: `canal = "cortado"`, consulta con `ver_cobro` cada 3 s (`setTimeout`), aviso `reconectando` si es el cobro en pantalla. Cada consulta con `{ cobro }` se trata igual que un evento (RF-033); con `{ sin_conexion }` se reintenta en 3 s.
-  - En `open`: `canal = "abierto"`, se detiene la consulta y se quita el aviso.
+  - En `open`: `canal = "abierto"`, se cambia al intervalo de 8 s y se quita el aviso. Una sola consulta en curso por cobro, incluso si cambia el estado del canal (C-4, RF-079).
   - Si el `EventSource` queda `CLOSED` y la consulta da 200, se intenta abrir otro cada 15 s (R-5, DP-9).
   - **RF**: RF-030, RF-031, RF-032, RF-033, RF-034
   - **Dep.**: T030, T032
   - **Hecho cuando**: todas las pruebas de T030 y de T029 pasan, incluida la de CE-008.
 - [X] T034 [US4] Cierre de F4: pruebas en verde, sección F4 en `verification-guide.md`, prueba del silencio en el iPhone y commit sugerido
+  - C-5: en `test_pago_recibido.py`, simular el rechazo de `play()`, comprobar el aviso y el reintento al tocar, el desbloqueo tras volver a la página y la sesión de audio opcional.
   - Reconexión automática del navegador (QT-2), a mano: con un cobro en la vista QR, activar y quitar el modo avión del celular; esperado: aparece y desaparece "Reconectando…" y un pago posterior se avisa.
   - Con la web servida en la red local (quickstart §3 con la IP de la Mac en lugar de `localhost`) y un cobro del servidor simulado o de $0.01 real con autorización de Hugo: poner el iPhone en silencio, provocar un pago y anotar si suena como TK en el plan §14 (riesgo R-7).
   - Commit sugerido: `feat(002): aviso de pago con sonido, vibración y respaldo del canal (F4)`.
@@ -629,6 +632,7 @@ Miguel o Beer17 revisan cada pull request y lo prueban en su iPhone o Android (D
   - `Escuchas` llama a `memoria.guardar` en cada cambio: crear, Nuevo cobro, cancelar y terminar una escucha (R-10).
   - Al arrancar, `app.js` hace `memoria.leer()` y, por cada id, `ver_cobro`: 404 → el de pantalla va a la vista Error y un anterior se descarta; `hora_servidor ≥ fin_ventana` → se descarta; si no, se muestran sin sonido los pagos que ya tiene (el de pantalla en su vista y los anteriores con su aviso), se llama a `avisados.marcar_todos` y empieza su escucha.
   - Si se recuperó algo, `activar-sonido` hasta el primer toque en cualquier parte, que llama a `desbloquear()`; mientras tanto, los pagos nuevos se muestran sin `sonar()` ni `vibrar()` (RF-055).
+  - C-5: usar el mismo aviso cuando se rechace el sonido de un pago nuevo y reintentarlo desde el primer toque. Preparar otro desbloqueo al recibir `pageshow` o volver a visible.
   - **RF**: RF-051, RF-052, RF-053, RF-054, RF-055, RF-056, RF-057, RF-075, RF-076
   - **Dep.**: T055
   - **Hecho cuando**: todas las pruebas de T054 pasan y las anteriores siguen en verde.

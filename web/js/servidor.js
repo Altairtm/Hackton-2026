@@ -62,14 +62,14 @@ export async function crear_cobro(monto, concepto) {
 
 /**
  * Consulta un cobro. Devuelve `{ cobro }`, `{ no_existe: true }` o `{ sin_conexion: true }`
- * (spec 002, RF-030, RF-033, RF-056, RF-057, RF-063, RF-064).
+ * (spec 002, RF-030, RF-033, RF-056, RF-057, RF-063, RF-064, RF-079).
  *
  * @param {string} id
  * @returns {Promise<{ cobro?: object, no_existe?: boolean, sin_conexion?: boolean }>}
  */
 export async function ver_cobro(id) {
   try {
-    const respuesta = await fetch(direccion(`/api/cobros/${id}`));
+    const respuesta = await fetch(direccion(`/api/cobros/${id}`), { cache: "no-store" });
     if (respuesta.status === 200) {
       return { cobro: await respuesta.json() };
     }

@@ -1,6 +1,6 @@
 import { desfase, formato, restante } from "./cuenta.js";
 import { Escuchas } from "./escucha.js";
-import { desbloquear } from "./sonido.js";
+import { desbloquear, sonar } from "./sonido.js";
 import { leer } from "./memoria.js";
 import { cancelar_cobro, crear_cobro } from "./servidor.js";
 import { aplicar_tecla } from "./teclado.js";
@@ -47,6 +47,11 @@ let diferencia_cuenta = 0;
 /** @type {string} */
 let mensaje_cancelar = "";
 
+let desbloqueo_pendiente = false;
+let sonido_pendiente = false;
+/** @type {Promise<boolean> | undefined} */
+let ultimo_intento_sonoro;
+
 /**
  * @param {object} cobro
  * @param {object} pago
@@ -66,6 +71,7 @@ function pintar_pagado(cobro, pago, vigente) {
 }
 
 const escuchas = new Escuchas({
+  sonido: avisar_con_sonido,
   recuperado(cobro, en_pantalla) {
     if (!estado.sonido_desbloqueado) {
       mostrar_activar_sonido(true);
@@ -121,6 +127,13 @@ const escuchas = new Escuchas({
 mostrar_teclado(estado);
 conectar();
 recuperar();
+document.addEventListener("click", activar_sonido_al_tocar, { capture: true });
+window.addEventListener("pageshow", preparar_desbloqueo);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    preparar_desbloqueo();
+  }
+});
 
 /**
  * @returns {void}
@@ -266,8 +279,10 @@ async function pedir_cobro(monto) {
   if (estado.accion_en_curso) {
     return;
   }
-  desbloquear();
-  estado.sonido_desbloqueado = true;
+  if (!estado.sonido_desbloqueado) {
+    estado.sonido_desbloqueado = true;
+    void desbloquear();
+  }
   estado.accion_en_curso = "creando";
   estado.vista = "generando";
   mostrar_generando(estado);
@@ -421,18 +436,47 @@ function mostrar_cobro_recuperado(cobro) {
 }
 
 /**
- * El primer toque en cualquier parte vuelve a permitir el sonido (spec 002, RF-054).
+ * Avisa el resultado del intento más reciente, aunque dos pagos lleguen juntos
+ * (spec 002, RF-054).
  *
  * @returns {void}
  */
-function pedir_toque_para_sonar() {
-  escuchas.fijar_sin_sonido(true);
-  document.addEventListener("click", () => {
-    escuchas.fijar_sin_sonido(false);
-    desbloquear();
-    estado.sonido_desbloqueado = true;
-    mostrar_activar_sonido(false);
-  }, { capture: true, once: true });
+function avisar_con_sonido() {
+  const intento = sonar();
+  ultimo_intento_sonoro = intento;
+  void intento.then((iniciado) => {
+    if (intento === ultimo_intento_sonoro) {
+      sonido_pendiente = !iniciado;
+      mostrar_activar_sonido(sonido_pendiente);
+    }
+  });
+}
+
+/** Prepara el desbloqueo para el siguiente toque (spec 002, RF-054). */
+function preparar_desbloqueo() {
+  desbloqueo_pendiente = true;
+}
+
+/**
+ * Inicia play desde el gesto para que el navegador lo permita (spec 002, RF-054, RF-055).
+ *
+ * @param {MouseEvent} evento
+ * @returns {void}
+ */
+function activar_sonido_al_tocar(evento) {
+  if (!evento.isTrusted || (!desbloqueo_pendiente && !sonido_pendiente)) {
+    return;
+  }
+  desbloqueo_pendiente = false;
+  estado.sonido_desbloqueado = true;
+  escuchas.fijar_sin_sonido(false);
+  if (sonido_pendiente) {
+    sonido_pendiente = false;
+    avisar_con_sonido();
+    return;
+  }
+  mostrar_activar_sonido(false);
+  void desbloquear();
 }
 
 /**
@@ -446,7 +490,8 @@ function recuperar() {
   if (!recordado || (!recordado.en_pantalla && recordado.anteriores.length === 0)) {
     return;
   }
-  pedir_toque_para_sonar();
+  preparar_desbloqueo();
+  escuchas.fijar_sin_sonido(true);
   if (recordado.en_pantalla) {
     estado.vista = "recuperando";
     mostrar_recuperando();
