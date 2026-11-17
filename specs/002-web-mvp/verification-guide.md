@@ -605,7 +605,7 @@ Claude revisó el diff de `escucha.js` (consulta cada 8 s con canal abierto, un 
 - **Las pruebas no dependen de `web/config.js`.** Con `config.js` apuntando a un túnel (como estaba durante la prueba real), la suite pasó igual: el simulado ahora siempre sirve su propio `config.js`.
 - **Causa de lo que se vio en Android e iPhone:** el túnel rápido de Cloudflare retiene el canal de eventos hasta que se cierra (8 eventos de 1 por segundo llegaron juntos a los 8.3 s; con `localhost.run` llegaron uno por segundo). La consulta de seguridad de C-4 cubre ese caso, y también el de un proxy con búfer en producción (#65).
 - **Costo en el backend:** cada consulta de la web (`GET /api/cobros/{id}`) pide a pey los pagos como mucho cada 3 s por cobro (`intervalo_minimo=3`). Con tres canales abiertos son tres consultas más cada 8 s; no cambia el límite hacia pey.
-- **Estado de C-4 y C-5:** el documento los marca «Aprobado por Hugo el 2026-11-16». Claude no pudo comprobar esa aprobación; AGENTS.md pide que cada `C-n` se apruebe por separado.
+- **Estado de C-4 y C-5:** aprobados por Hugo el 2026-11-16 (así lo marca el documento y Hugo lo confirmó).
 
 ### Resultado de la prueba con celulares (2026-11-16)
 
