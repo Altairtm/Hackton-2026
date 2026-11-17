@@ -235,7 +235,7 @@ def test_tras_recargar_se_pide_un_toque_para_el_sonido(
     expect(pagina.locator('[data-prueba="vista-pagado"]')).to_be_visible()
     assert sonidos(pagina) == 0
     assert vibraciones(pagina) == []
-    aviso.tap()
+    aviso.click()
     expect(aviso).to_be_hidden()
     servidor.agregar_pago(id_cobro, 1)
     expect(pagina.locator('[data-prueba="pagado-numero"]')).to_have_text("Pago 2")

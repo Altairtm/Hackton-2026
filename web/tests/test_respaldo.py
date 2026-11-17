@@ -122,6 +122,21 @@ def _esperar_cerrado(pagina: Page, id_cobro: str) -> None:
     )
 
 
+def _cobrar_con_canal_mudo(pagina: Page, servidor: ServidorSimulado, id_cobro: str) -> None:
+    servidor.dejar_canal_mudo(id_cobro)
+    abrir(pagina, servidor)
+    ruta_eventos = f"{servidor.origen}/api/cobros/{id_cobro}/eventos"
+    # La respuesta confirma el SSE en el servidor. El registro confirma que la web
+    # procesó la apertura antes de adelantar el reloj de la primera consulta.
+    with (
+        pagina.expect_console_message(
+            lambda mensaje: mensaje.text == f"escucha {id_cobro}: abierto"
+        ),
+        pagina.expect_response(lambda respuesta: respuesta.url == ruta_eventos and respuesta.ok),
+    ):
+        assert _cobrar(pagina, servidor) == id_cobro
+
+
 def _esperar_abierto(pagina: Page, id_cobro: str) -> None:
     pagina.wait_for_function(
         """(id) => window.__canales.some((canal) => {
@@ -218,10 +233,7 @@ def test_con_el_canal_abierto_y_mudo_la_consulta_avisa_y_suena(
     servidor.fijar_hora(_HORA)
     id_cobro = "CanalMudo"
     servidor.responder_crear(cuerpo=servidor.cobro_de_prueba(id=id_cobro))
-    servidor.dejar_canal_mudo(id_cobro)
-    abrir(pagina, servidor)
-    assert _cobrar(pagina, servidor) == id_cobro
-    _esperar_abierto(pagina, id_cobro)
+    _cobrar_con_canal_mudo(pagina, servidor, id_cobro)
     servidor.agregar_pago(id_cobro, 25.5)
     pagina.clock.run_for(7_999)
     assert _consultas(servidor, id_cobro) == []
@@ -232,7 +244,9 @@ def test_con_el_canal_abierto_y_mudo_la_consulta_avisa_y_suena(
     expect(pagina.locator('[data-prueba="vista-pagado"]')).to_be_visible()
     expect(pagina.locator('[data-prueba="reconectando"]')).to_be_hidden()
     assert sonidos(pagina) == 1
-    assert [canal["estado"] for canal in canales(pagina)] == ["OPEN"]
+    (canal,) = canales(pagina)
+    assert canal["estado"] != "CLOSED"
+    assert servidor.canales_abiertos(id_cobro) == 1
 
 
 def test_el_pago_por_el_canal_no_se_repite_al_consultar_con_el_canal_abierto(
@@ -290,10 +304,7 @@ def test_la_ultima_consulta_avisa_el_pago_y_cierra_el_canal_mudo(
     servidor.fijar_hora(_HORA)
     id_cobro = "UltimaConsulta"
     servidor.responder_crear(cuerpo=servidor.cobro_de_prueba(id=id_cobro))
-    servidor.dejar_canal_mudo(id_cobro)
-    abrir(pagina, servidor)
-    assert _cobrar(pagina, servidor) == id_cobro
-    _esperar_abierto(pagina, id_cobro)
+    _cobrar_con_canal_mudo(pagina, servidor, id_cobro)
     servidor.fijar_hora(_HORA + 1_199)
     servidor.agregar_pago(id_cobro, 25.5)
     servidor.fijar_hora(_HORA + 1_200)

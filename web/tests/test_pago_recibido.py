@@ -293,11 +293,11 @@ def test_si_el_navegador_bloquea_el_sonido_avisa_y_reintenta_al_tocar(
     expect(aviso).to_have_text("Toca para activar el sonido", timeout=3_000)
     assert sonidos(pagina) == 1
     assert "sonido: aviso rechazado (NotAllowedError)" in mensajes
-    aviso.tap()
+    aviso.click()
     expect(aviso).to_be_visible()
     assert sonidos(pagina) == 2
     pagina.evaluate("() => { window.__rechazar_sonido = false; }")
-    aviso.tap()
+    aviso.click()
     expect(aviso).to_be_hidden()
     assert sonidos(pagina) == 3
     assert "sonido: aviso iniciado" in mensajes
@@ -332,10 +332,10 @@ def test_al_volver_a_la_pagina_el_primer_toque_repite_el_desbloqueo(
     )
     assert pagina.evaluate("() => window.__sonidos.length") == cuenta
     monto = pagina.locator('[data-prueba="qr-monto"]')
-    monto.tap()
+    monto.click()
     assert pagina.evaluate("() => window.__sonidos.length") == cuenta + 1
     assert sonidos(pagina) == 0
-    monto.tap()
+    monto.click()
     assert pagina.evaluate("() => window.__sonidos.length") == cuenta + 1
 
 

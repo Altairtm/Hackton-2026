@@ -313,9 +313,20 @@ class ServidorSimulado:
             self._rechazos.pop(id_cobro, None)
 
     def dejar_canal_mudo(self, id_cobro: str) -> None:
-        """Abre el canal sin entregar eventos, como un proxy con búfer (spec 002, C-4)."""
+        """Abre el SSE con retry y retiene todos los eventos del cobro (spec 002, C-4)."""
         with self._candado:
             self._canales_mudos.add(id_cobro)
+
+    def canales_abiertos(self, id_cobro: str) -> int:
+        """Cuenta las suscripciones SSE vigentes del cobro (spec 002, R-2, C-4)."""
+        total = 0
+
+        def contar() -> None:
+            nonlocal total
+            total = len(self._suscriptores.get(id_cobro, ()))
+
+        self._en_bucle(contar)
+        return total
 
     def olvidar(self, id_cobro: str) -> None:
         """Borra el cobro, como si el servidor se hubiera reiniciado (spec 002, R-2)."""
@@ -434,8 +445,9 @@ class ServidorSimulado:
 
             async def flujo() -> AsyncIterator[str]:
                 try:
+                    # Envía bytes iniciales para separar la apertura del flujo de sus eventos.
+                    yield f"retry: {retry}\n\n"
                     if not mudo:
-                        yield f"retry: {retry}\n\n"
                         yield _evento("estado", estado)
                     while True:
                         mensaje = await cola.get()

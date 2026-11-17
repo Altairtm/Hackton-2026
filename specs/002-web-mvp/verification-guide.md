@@ -621,3 +621,18 @@ Con el celular del negocio en el QR, sin salir de la página, y el pago desde ot
 - Vibración en Android, iPhone en silencio con el interruptor activado (TK-2), modo avión (TK-1) y pantalla encendida 10 minutos (CE-011).
 
 Los túneles gratuitos sirvieron para las pruebas pero son frágiles: el de `localhost.run` se cortó cada ~16 minutos, y el rápido de Cloudflare no transmite eventos. Para repetir estas pruebas conviene el despliegue real de #65.
+
+### Repetición de las pruebas de C-4 y C-5 en Windows (2026-11-17)
+
+Juan reportó seis fallos en WebKit en Windows 11 con el commit `9795e74`. En macOS los seis casos originales pasan. La sonda local con Playwright 1.64.1 registró `touchstart`, `touchend` y un `click` confiable al usar `tap()` en WebKit 27.2 con el perfil iPhone 13. El `EventSource` emitió `open` con solo las cabeceras y sin bytes de cuerpo. La causa de los fallos en Windows sigue por confirmar.
+
+- **Sonido.** Las pruebas usan `locator.click()` para entregar el evento que escucha la web. WebKit conserva el perfil iPhone 13. Se siguen comprobando el reintento tras el rechazo del audio, el desbloqueo único al regresar y la reactivación al recuperar un cobro.
+- **Canal mudo.** El simulado envía la línea de protocolo `retry:` al abrir el flujo y retiene los eventos del cobro. Las pruebas se sincronizan con la respuesta del servidor y con el registro de apertura de la web antes de adelantar el reloj. Comprueban el GET de los 8 s, el aviso, el sonido y que el SSE siga conectado al servidor en la primera prueba. La segunda comprueba el aviso del último GET y el cierre del canal.
+
+En una copia temporal, se desactivó la programación de la consulta al abrir el SSE. En ambos motores, el primer caso falló al esperar el GET y el segundo al esperar «Pago recibido». Con la consulta activa, omitir que se aplique el resultado del último GET también hizo fallar el segundo caso.
+
+Juan puede volver a correr los seis casos en Windows desde la raíz del repositorio. El selector los ejecuta en Chromium y WebKit, según la configuración de la suite.
+
+```bash
+uv run --directory backend pytest ../web -q -k "bloquea_el_sonido or primer_toque_repite or pide_un_toque or canal_abierto_y_mudo or cierra_el_canal_mudo"
+```
