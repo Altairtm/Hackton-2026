@@ -106,7 +106,8 @@ No hay sandbox: se prueba en producción con cobros de **$0.01 MXN**.
 - [ ] Titular de la API key de pey (requisitos de la sección 3).
 - [ ] Integrantes oficiales (máximo 5) o autorización para ser más.
 - [ ] Responsables de cada área.
-- [ ] Base de datos y hosting.
+- [x] Base de datos: **Supabase** (PostgreSQL). MongoDB no entra. Ver #19, #23 y [docs/implementacion/089-mongodb.md](implementacion/089-mongodb.md).
+- [ ] Hosting.
 
 ## 8. Monetización (para el pitch)
 
