@@ -100,9 +100,9 @@ No hay sandbox: se prueba en producción con cobros de **$0.01 MXN**.
 
 1. Toma un issue y asígnatelo.
 2. Crea una rama `feature/<número>-<descripcion-corta>`.
-3. Escribe la nota de implementación del issue en `docs/implementacion/`.
-4. Abre un pull request que diga `Closes #<número>`. Juan revisa los de Hugo y Miguel; Hugo revisa los de Juan.
-5. Se une a `main` cuando cumple los criterios de aceptación.
+3. Abre un pull request que diga `Closes #<número>` y documenta lo que hiciste con la [plantilla de pull request](../.github/pull_request_template.md).
+4. Únelo tú a `main` cuando el CI esté en verde y cumpla los criterios de aceptación.
+5. Juan y Leonel revisan lo que entra a `main` y avisan si algo salió mal.
 
 El detalle está en [flujo-de-trabajo.md](../flujo-de-trabajo.md).
 

@@ -1,8 +1,10 @@
 # PAGO FÁCIL — Flujo de trabajo, roles e issues
 
-**Hackatón México 2026** · Repositorio `Altairtm/Hackton-2026` · Versión del 15 de noviembre de 2026
+**Hackatón México 2026** · Repositorio `Altairtm/Hackton-2026` · Versión del 15 de noviembre de 2026, actualizada el 20 de noviembre
 
-Este documento dice quién hace qué, cuándo y con qué entregable. Sustituye al reparto del 14 de noviembre (`PAGO-FACIL-reparto-de-responsabilidades.pdf`), que estaba pensado para cuatro personas.
+Este documento dice quién hace qué, cuándo y con qué entregable. Sustituye al reparto del 14 de noviembre (`PAGO-FACIL-reparto-de-responsabilidades.pdf`).
+
+> **Actualización del 20 de noviembre.** Leonel Mendiola entró como integrante oficial y el equipo vuelve a ser de cuatro. Las reglas de trabajo (secciones 1 y 4) ya están al día. El reparto por persona con Leonel y las 12 funciones nuevas está en [`docs/flujo-de-construccion.md`](docs/flujo-de-construccion.md). Las tablas de las secciones 5 y 6 son el reparto del 15 de noviembre.
 
 Las reglas comunes del proyecto están en la [constitución](.specify/memory/constitution.md). Si este documento choca con ella, manda la constitución. Si la constitución choca con las [reglas del hackathon](https://hackatonmexico.com/reglas), mandan las reglas.
 
@@ -10,17 +12,20 @@ Las reglas comunes del proyecto están en la [constitución](.specify/memory/con
 
 ## 1. Lo esencial en una página
 
-- **Somos tres:** Hugo, Juan y Miguel.
+- **Somos cuatro:** Hugo, Leonel, Juan y Miguel. Los cuatro están inscritos en el hackathon.
 - **El desarrollo termina el jueves 10 de diciembre.** El 11 y el 12 son solo para ajustes. La entrega oficial cierra el sábado 12 de diciembre a las 23:59, sin prórroga.
 - **Construimos tres pantallas sobre un solo servidor:** la web de cobro, una app Android y una app iOS.
-- **Cada quien decide cómo construir sus issues.** Lo único obligatorio para todos es dejar una **nota de implementación** por cada issue resuelto y pasar por la revisión de Juan.
+- **Cada quien decide cómo construir sus issues**, y también si hace spec, plan y tareas. Lo obligatorio para todos es que el **commit y el pull request cuenten bien lo que se hizo**, con la [plantilla de pull request](.github/pull_request_template.md).
+- **Cada quien une su propio pull request.** Juan y Leonel revisan lo que entra a `main` y, si algo salió mal, lo hacen ver.
+- **Nadie es indispensable.** Si el responsable de una tarea no puede, otra persona la toma sin pedir permiso y lo deja anotado en el issue.
 - **La web va primero.** Es el enlace que evalúan los jueces. Después van las apps y al final lo Premium.
 
-| Persona | Cuenta de GitHub | Responsabilidades |
-|---|---|---|
-| **Hugo** | `HugoAI23` | Producto (requisitos e historias de usuario), backend, integraciones (pey, WhatsApp, chatbot), AWS, CI, coordinación de la seguridad y la web de cobro hasta cerrar la spec 002 |
-| **Juan** | `Altairtm` | Revisar y unir todos los pull requests, bases de datos (Supabase y MongoDB), pruebas QA y la **app iOS** |
-| **Miguel** | `Beer17` | Frontend web, UI/UX, landing page, guías QA para Juan y la **app Android** |
+| Persona | Cuenta de GitHub | Responsabilidades | Respaldo |
+|---|---|---|---|
+| **Hugo** | `HugoAI23` | Producto (requisitos e historias de usuario), backend, integraciones (pey, WhatsApp, chatbot), AWS, CI, coordinación de la seguridad y la web de cobro hasta cerrar la spec 002 | Leonel, en el backend y la web |
+| **Leonel** | `mendiolaleonel2002-debug` | Arquitectura (observaciones de cambios sobre lo implementado), revisión de lo que se une a `main`, front de la web (base PWA, notificaciones y pantallas) y pruebas de la demo por túnel para los jueces | Miguel en el front, Hugo en la revisión |
+| **Juan** | `Altairtm` | Pruebas QA y revisión de lo que se une a `main`, bases de datos (Supabase y MongoDB) y la **app iOS** | Leonel en la revisión, Miguel en QA |
+| **Miguel** | `Beer17` | Pantallas de la web y UI/UX, landing page, guías QA y la **app Android** | Leonel en las pantallas, Juan en las guías QA |
 
 ---
 
@@ -64,26 +69,26 @@ Las reglas comunes del proyecto están en la [constitución](.specify/memory/con
 | Librerías de QR | `qrcode` o `segno` | **Lo define Hugo.** Hoy el QR es la imagen que entrega pey |
 | Editor y agentes | Antigravity, Claude u otros | Libre. Todo agente lee la constitución antes de empezar |
 
-Cada decisión pendiente se cierra con una comparativa corta por escrito: opción A frente a B, ventajas, desventajas y por qué se eligió. Va en la nota de implementación del issue correspondiente.
+Cada decisión pendiente se cierra con una comparativa corta por escrito: opción A frente a B, ventajas, desventajas y por qué se eligió. Va en la descripción del pull request del issue correspondiente.
 
 ---
 
 ## 4. Cómo se trabaja un issue
 
-Los pasos son los mismos para los tres.
+Los pasos son los mismos para los cuatro.
 
 1. **Tomar el issue.** Asígnatelo en GitHub y crea la rama `feature/<número>-<descripcion-corta>`.
-2. **Construirlo.** Cómo hacerlo lo decide su dueño:
-   - Hugo trabaja con specs: spec → plan → tareas, con spec-kit.
-   - Juan y Miguel deciden si hacen spec, plan y tareas. Spec-kit ya está instalado en el repositorio por si quieren usarlo.
-3. **Escribir la nota de implementación.** Un archivo `docs/implementacion/<número>-<descripcion>.md`, hecho con la [plantilla](docs/implementacion/_plantilla.md). Cuenta qué pedía el issue, qué se hizo, qué se decidió y por qué, cómo probarlo y qué quedó pendiente. **Es obligatoria para todos**, además del commit.
-4. **Guía QA, si el issue tiene pantalla.** Miguel la escribe en `docs/qa/`. Es la lista de pasos que Juan va a seguir en un celular.
-5. **Pull request** hacia `main`, con `Closes #<número>` en la descripción.
-6. **Revisión de Juan.** Comprueba cuatro cosas: que el cambio respeta la constitución, que la nota de implementación existe, que las pruebas pasan y que la guía QA se cumple. Si todo está bien, lo une a `main`. Si algo falla, abre un issue `tipo: bug` para el dueño.
+2. **Construirlo.** Cómo hacerlo lo decide su dueño, y también si hace spec, plan y tareas. Hugo trabaja con specs (spec-kit). Spec-kit está instalado en el repositorio para quien quiera usarlo.
+3. **Guía QA, si el issue tiene pantalla.** Miguel la escribe en `docs/qa/`. Es la lista de pasos que Juan va a seguir en un celular.
+4. **Commit y pull request documentados.** El pull request va hacia `main`, con `Closes #<número>`. Su descripción sigue la [plantilla](.github/pull_request_template.md): qué pedía el issue, qué se hizo, qué se decidió y por qué, cómo probarlo, qué quedó pendiente y la revisión de seguridad. Si trabajaste con spec, basta con enlazar su carpeta. No hay otro documento aparte.
+5. **Unirlo.** El autor une su propio pull request cuando el CI está en verde y revisó su diff buscando llaves, `.env` o datos personales.
+6. **Revisión después de unir.** Juan y Leonel revisan lo que entra a `main`. Comprueban que respete la constitución, que el pull request esté bien documentado y, si tiene pantalla, que la guía QA se cumpla. Si algo salió mal, lo comentan en el pull request o abren un issue `tipo: bug` para el dueño. Si rompe la demo, se corrige o se revierte con otro pull request.
 
-**Quién revisa a quién.** Juan revisa a Hugo y a Miguel. Hugo revisa a Juan, incluida la app iOS. Nadie une su propio pull request.
+**Arquitectura.** Leonel no aprueba planes antes de construir. Se implementa y él hace observaciones de cambios; el dueño decide cómo atenderlas.
 
-**Seguridad.** La revisión de seguridad no la hace quien escribió el código: la hacen un agente de IA y un profesor de la universidad, sobre el repositorio público. Hugo coordina y reparte los arreglos. El profesor no es integrante del equipo y **no recibe ninguna llave ni secreto**.
+**Seguridad.** La revisión de seguridad la hacen un agente de IA y Leonel sobre lo que se une a `main`. Hugo coordina y reparte los arreglos. Las llaves de pey solo las tienen integrantes y solo viven en `backend/.env` o en el hosting (constitución, principio III).
+
+**Si el responsable no puede.** Cualquier integrante, de preferencia su respaldo (tabla de la sección 1), toma la tarea o la pasa a otra persona, sin pedir la aprobación de nadie. Basta con dejar en el issue que se hizo el cambio y reasignarlo; no hace falta explicar la causa. Las llaves no viajan con la tarea: si hacen falta, las da Hugo, que es el titular.
 
 **Si trabajas con un agente de IA.** Pídele que lea `.specify/memory/constitution.md` antes de escribir código. Puedes tener tu propio archivo `AGENTS.md` en tu computadora: git lo ignora. El de Hugo no está en el repositorio; si lo quieres usar, pídeselo.
 
@@ -136,7 +141,7 @@ Ninguna pantalla lleva la llave de pey ni habla con pey directamente. Eso solo l
 
 | Persona | Entregables |
 |---|---|
-| Hugo | Chatbot, backend (#92). WhatsApp (#46–#48). Modelo de monetización (#49). Uno o dos negocios piloto (#50). Revisión de premios y bounties (#51). Revisión de seguridad con el agente y el profesor (#44, #95) |
+| Hugo | Chatbot, backend (#92). WhatsApp (#46–#48). Modelo de monetización (#49). Uno o dos negocios piloto (#50). Revisión de premios y bounties (#51). Revisión de seguridad con el agente y Leonel (#44, #95) |
 | Juan | Segunda ronda de QA (registro, historial y apps). App iOS v2: aviso de pago con sonido y vibración (#83) |
 | Miguel | Pantalla de historial (#39). Estados de carga, error y sin conexión (#41). Pantalla del chatbot (#93). Pantalla Premium (#40). Accesibilidad (#42). Landing final. App Android v2: aviso de pago (#79), y NFC si la investigación lo permite |
 
@@ -171,7 +176,7 @@ Los jueces evalúan el enlace web, así que la web va primero. Si el **domingo 2
 
 | Antes | Áreas | Ahora |
 |---|---|---|
-| Profesor (14 issues) | Backend, base de datos e integración con pey | Ya no es integrante. Backend e integraciones pasan a Hugo; base de datos pasa a Juan. Sigue como revisor externo de seguridad |
+| Profesor (14 issues) | Backend, base de datos e integración con pey | El 15 de noviembre dejó de ser integrante: backend e integraciones pasaron a Hugo y base de datos a Juan. **El 19 de noviembre volvió como integrante oficial** (Leonel): arquitectura, revisión de lo unido, front y pruebas de la demo por túnel |
 | Miguel (12) | Frontend y UX/UI | Igual, más landing page, guías QA y la app Android |
 | Hugo (18) | IA, WhatsApp y producto | Igual, más backend, AWS, CI, chatbot, NFC y coordinación de la seguridad |
 | Juan (14) | Seguridad, DevOps y coordinación | Deja esas tres áreas (pasan a Hugo). Toma revisión de pull requests, bases de datos, QA y la app iOS |
@@ -212,7 +217,7 @@ Los jueces evalúan el enlace web, así que la web va primero. Si el **domingo 2
 | #37 | Cupones antes de generar el QR | S3 | Antes sin dueño. **Opcional** |
 | #38 | Historial de cobros y corte del día | S2 | |
 | #43 | Pruebas con usuarios reales | S4 | Con Miguel |
-| #44 | Proteger datos y validar entradas | S3 | Antes Juan. Con el agente de IA y el profesor |
+| #44 | Proteger datos y validar entradas | S3 | Antes Juan. Con el agente de IA y Leonel |
 | #45 | Logs y monitoreo de la demo | S2 | Antes Juan |
 | #46 | WhatsApp Cloud API con número de prueba | S3 | Premium |
 | #47 | Bot de WhatsApp: "cobra monto concepto" | S3 | Premium |
@@ -286,7 +291,7 @@ Son requisitos que no tenían issue. Se crearon en GitHub el 15 de noviembre, en
 | #92 | Chatbot en la web: backend | Hugo | S3 | Premium |
 | #93 | Chatbot en la web: pantalla | Miguel | S3 | Premium |
 | #94 | Decidir si el backend dibuja el QR o sigue la imagen de pey | Hugo | S1 | `qrcode` frente a `segno`. Va ligado a #89 |
-| #95 | Coordinar la revisión externa de seguridad | Hugo | S3–S4 | Agente de IA y profesor, sin acceso a secretos |
+| #95 | Coordinar la revisión de seguridad | Hugo | S3–S4 | Agente de IA y Leonel |
 
 ### Carga por persona
 
@@ -296,17 +301,17 @@ Tareas vivas más tareas nuevas, sin contar épicas ni lo que se va a cerrar.
 |---|---|---|---|---|
 | Hugo | 31 | 6 | **37** | Dos solo esperan el pago real (#27, #29). Siete son opcionales o Premium (#36, #37, #46, #47, #48, #58 y #92) |
 | Miguel | 11 | 8 | **19** | Escribe la guía QA de cada pantalla |
-| Juan | 3 | 6 | **9** | Revisa todos los pull requests y ejecuta todas las rondas de QA |
+| Juan | 3 | 6 | **9** | Ejecuta todas las rondas de QA y, con Leonel, revisa lo que se une a `main` |
 
 ---
 
 ## 7. Riesgos
 
-1. **Alcance.** Somos tres y quedan 25 días de desarrollo para una web, dos apps nativas, una landing, registro, historial y tres funciones Premium. Para eso está la regla de corte del 29 de noviembre.
-2. **Carga desigual.** Hugo tiene 37 tareas, Miguel 19 y Juan 9. Si Hugo se atrasa, cuatro tareas pueden pasar a Juan sin salirse de su papel de QA: el CI (#35), verificar la guía de instalación (#17), los logs de la demo (#45) y congelar la demo (#57).
-3. **Juan revisa todo y además construye la app iOS.** Si la app se atrasa, se frena la revisión de los demás. Propuesta: ningún pull request espera más de 24 horas.
+1. **Alcance.** Somos cuatro y quedan 21 días de desarrollo para una web, dos apps nativas, una landing, registro, historial y tres funciones Premium. Para eso está la regla de corte del 29 de noviembre.
+2. **Carga desigual.** Hugo tiene 37 tareas, Miguel 19 y Juan 9. Si Hugo se atrasa, cualquiera puede tomar sus tareas (sección 4, "Si el responsable no puede"). Las primeras candidatas pasan a Juan sin salirse de su papel de QA: el CI (#35), verificar la guía de instalación (#17), los logs de la demo (#45) y congelar la demo (#57). El backend y la web los respalda Leonel.
+3. **La revisión ya no frena a nadie.** Cada quien une su pull request y Juan y Leonel revisan después. El riesgo cambia: un error puede llegar a `main`. Por eso se revisa lo unido en menos de 24 horas y, si rompe la demo, se revierte con otro pull request.
 4. **iOS necesita más que Android.** Hace falta una Mac con Xcode y, para instalar la app en un iPhone ajeno, una cuenta de desarrollador de Apple de pago. TestFlight tiene revisión previa. Android se reparte con un archivo APK.
-5. **Tres formas de trabajar en un mismo repositorio.** La nota de implementación y la revisión de Juan son lo que mantiene parejo el resultado. Sin ellas nadie sabe qué hizo el otro.
+5. **Cuatro formas de trabajar en un mismo repositorio.** El pull request bien documentado y la revisión de Juan y Leonel son lo que mantiene parejo el resultado. Sin ellos nadie sabe qué hizo el otro.
 6. **Cuenta CoDi de pey.** El trámite tarda unos 5 días hábiles (#14). Hay que iniciarlo en S1.
 7. **Cinco decisiones de tecnología abiertas en S1:** landing, Android, iOS, MongoDB y librerías de QR. Cada día sin decidir es un día menos de construcción.
 8. **Nuevas reglas de CoDi del 14 de diciembre** (Circular 9/2026). Quedó como pregunta abierta desde el kickoff.

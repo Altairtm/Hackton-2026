@@ -36,21 +36,21 @@ Para todo el equipo:
 
 - **Solo lo pedido.** Se hace lo que pide el issue. Nada de funciones sorpresa, retoques cosméticos ni refactorizaciones no pedidas.
 - **Nunca suponer.** Ante una duda o un caso límite sin definir, la persona o su agente se detiene y pregunta.
-- **Nota de implementación.** Cada issue resuelto DEBE dejar, además del commit, un documento en `docs/implementacion/` que cuente qué se pidió, qué se hizo, qué se decidió y por qué, cómo probarlo y qué quedó pendiente. La plantilla es `docs/implementacion/_plantilla.md`.
+- **Commit y pull request documentados.** Cada commit dice qué cambió. La descripción de cada pull request DEBE seguir la plantilla `.github/pull_request_template.md` y contar qué pedía el issue, qué se hizo, qué se decidió y por qué, cómo probarlo, qué quedó pendiente y la revisión de seguridad. No hay otro documento aparte.
 - **Cómo construirlo lo decide su dueño.** Cada integrante elige su forma de trabajo para sus issues.
 
 Flujo de specs (spec → plan → tareas, con spec-kit):
 
-- Es **obligatorio** en lo que construye Hugo: el backend, la web de cobro y todo lo que tenga carpeta en `specs/`. Ahí se cumple lo siguiente:
-  - ningún código de producto se escribe sin `spec.md`, `plan.md` y `tasks.md` aprobados en `specs/NNN-<nombre>/`;
-  - aprobar un paso no autoriza el siguiente: el siguiente empieza cuando Hugo lo pide;
+- **Cada quien decide** si hace spec, plan y tareas para lo que implementa. Spec-kit está instalado en el repositorio para quien quiera usarlo. Hugo lo usa en lo suyo.
+- Quien abre una carpeta en `specs/` cumple ahí lo siguiente:
+  - el código de esa spec no se escribe sin `spec.md`, `plan.md` y `tasks.md` aprobados por su dueño en `specs/NNN-<nombre>/`;
+  - aprobar un paso no autoriza el siguiente: el siguiente empieza cuando el dueño de la spec lo decide;
   - se hacen solo las tareas de `tasks.md`, en su orden;
   - si el código obliga a cambiar algo, la spec y el plan se actualizan en el momento, en el registro de implementación del plan;
-  - un cambio a una spec aprobada se presenta como `C-n`, Hugo lo aprueba por separado y se aplica solo cuando él lo pide.
-- Es **recomendado** para Juan y Miguel: cada uno decide si hace spec, plan y tareas para sus issues. Spec-kit está instalado en el repositorio para quien quiera usarlo.
-- Quien trabaja con specs puede enlazar su carpeta de `specs/` desde la nota de implementación en vez de repetir su contenido.
+  - un cambio a una spec aprobada se presenta como `C-n` y su dueño lo aprueba por separado.
+- Quien trabaja con specs puede enlazar su carpeta de `specs/` desde el pull request en vez de repetir su contenido.
 
-*Por qué:* tres personas trabajan de tres formas en un mismo repositorio. La nota de implementación es lo que permite a los demás saber qué se hizo sin leer todo el código.
+*Por qué:* cuatro personas trabajan de cuatro formas en un mismo repositorio. El pull request documentado es lo que permite a los demás saber qué se hizo sin leer todo el código.
 
 ### V. Pruebas primero, en todo (NO NEGOCIABLE)
 
@@ -91,7 +91,7 @@ Flujo de specs (spec → plan → tareas, con spec-kit):
 - **Orden de prioridad:** la web de cobro, después las apps Android e iOS, y al final lo Premium (pago con NFC, chatbot e integración con WhatsApp). Los jueces evalúan el enlace web. Lo Premium solo empieza cuando el núcleo ya funciona en la demo pública.
 - **Regla de corte.** Si el 29 de noviembre de 2026 una app todavía no crea un cobro y muestra su QR, deja de crecer: se entrega como está y su dueño vuelve a la web o a QA.
 - No se agrega una pieza (base de datos, cola, framework de frontend, servicio externo) hasta que un issue o una spec la justifique.
-- Una librería o herramienta nueva requiere una comparativa escrita: opción A frente a B, ventajas, desventajas, curva de aprendizaje y recomendación. Decide el dueño del área (Hugo en el backend y en la web de cobro) y la comparativa queda en la nota de implementación.
+- Una librería o herramienta nueva requiere una comparativa escrita: opción A frente a B, ventajas, desventajas, curva de aprendizaje y recomendación. Decide el dueño del área (Hugo en el backend y en la web de cobro) y la comparativa queda en la descripción del pull request.
 - Cada limitación aceptada se escribe, con el issue que la resolverá.
 
 ### X. Si no se ve, no existe
@@ -103,15 +103,21 @@ Flujo de specs (spec → plan → tareas, con spec-kit):
 
 ## Equipo y responsabilidades
 
-| Persona | Cuenta de GitHub | Responsabilidades |
-|---|---|---|
-| Hugo | `HugoAI23` | Producto (requisitos e historias de usuario), backend, integraciones (pey, WhatsApp, chatbot), AWS, CI, coordinación de la seguridad y la web de cobro |
-| Juan | `Altairtm` | Revisar y unir todos los pull requests, bases de datos (Supabase y MongoDB), pruebas QA y la app iOS |
-| Miguel | `Beer17` | Frontend web, UI/UX, landing page, guías QA y la app Android |
+| Persona | Cuenta de GitHub | Responsabilidades | Respaldo |
+|---|---|---|---|
+| Hugo | `HugoAI23` | Producto (requisitos e historias de usuario), backend, integraciones (pey, WhatsApp, chatbot), AWS, CI, coordinación de la seguridad y la web de cobro | Leonel, en el backend y la web |
+| Leonel | `mendiolaleonel2002-debug` | Arquitectura (observaciones de cambios sobre lo implementado), revisión de lo que se une a `main`, front de la web (base PWA, notificaciones y pantallas) y pruebas de la demo por túnel para los jueces | Miguel en el front, Hugo en la revisión |
+| Juan | `Altairtm` | Pruebas QA y revisión de lo que se une a `main`, bases de datos (Supabase y MongoDB) y la app iOS | Leonel en la revisión, Miguel en QA |
+| Miguel | `Beer17` | Pantallas de la web y UI/UX, landing page, guías QA y la app Android | Leonel en las pantallas, Juan en las guías QA |
 
-- **Revisión.** Juan revisa y une los pull requests de Hugo y de Miguel. Hugo revisa y une los de Juan. Nadie une su propio pull request.
-- **QA.** Miguel escribe la guía QA de cada funcionalidad con pantalla, en `docs/qa/`. Juan la ejecuta antes de unir.
-- **Seguridad.** Nadie aprueba su propio código sensible. La revisión de seguridad la hacen un agente de IA y un revisor externo (un profesor de la universidad), sobre el repositorio público. Hugo la coordina y reparte los arreglos.
+- **Unir.** Cada quien une su propio pull request cuando el CI está en verde y revisó su diff buscando llaves, `.env` o datos personales. No hace falta aprobación previa.
+- **Revisión después de unir.** Juan y Leonel revisan lo que entra a `main`. Si algo salió mal, lo hacen ver con un comentario en el pull request o con un issue `tipo: bug` para su dueño. Si rompe la demo, se corrige o se revierte con otro pull request.
+- **Arquitectura.** Leonel no aprueba planes antes de construir. Se implementa y él hace observaciones de cambios; el dueño decide cómo atenderlas.
+- **QA.** Miguel escribe la guía QA de cada funcionalidad con pantalla, en `docs/qa/`. Juan la ejecuta en cada ronda de QA y reporta los errores como issues.
+- **Seguridad.** La revisión de seguridad la hacen un agente de IA y Leonel sobre lo que se une a `main`. Hugo la coordina y reparte los arreglos.
+- **Suplencia.** Ningún trabajo depende de una sola persona. Si el responsable no puede, cualquier integrante (de preferencia su respaldo) toma la tarea o la pasa a otra persona, sin pedir la aprobación de nadie. Basta con dejar en el issue que se hizo el cambio y reasignarlo; no hace falta explicar la causa.
+  - Las llaves no viajan con la tarea. Las da Hugo, como titular, al integrante que las necesite (los cuatro están inscritos en el hackathon; regla 8.1).
+- **Demo para los jueces.** Leonel prueba la demo pública por el túnel HTTPS desde fuera de la red del equipo, con otros dispositivos y redes, como la verían los jueces. La prueba se hace antes de cada puerta semanal y durante la evaluación (12 al 14 de diciembre), y cada falla se avisa a Hugo en el momento. Para esas pruebas no necesita llaves.
 - **Calendario.** El desarrollo termina el 10 de diciembre de 2026. El 11 y el 12 solo se aceptan correcciones. El detalle de fechas, entregables e issues está en `flujo-de-trabajo.md`.
 
 ## Restricciones técnicas e idioma
@@ -137,7 +143,7 @@ Flujo de specs (spec → plan → tareas, con spec-kit):
 
 - **Nombres del código en español**: variables, funciones, clases, módulos, archivos, rutas del API y campos JSON. Ejemplos: `crear_cobro`, `RepositorioCobros`, `/api/cobros`, `monto`.
 - Los nombres que imponen las librerías, los protocolos, las plataformas o pey se dejan como son. Ejemplos: `lifespan`, `codiQrId`, `webhook-id`.
-- **También en español**: comentarios, docstrings, nombres de pruebas, specs, planes, guías, notas de implementación, mensajes de commit, mensajes para el usuario y explicaciones al equipo.
+- **También en español**: comentarios, docstrings, nombres de pruebas, specs, planes, guías, descripciones de pull requests, mensajes de commit, mensajes para el usuario y explicaciones al equipo.
 
 ## Flujo de desarrollo y calidad
 
@@ -145,11 +151,12 @@ Flujo de specs (spec → plan → tareas, con spec-kit):
 
    ```text
    tomar el issue → rama feature/<número>-<descripcion> → construir
-   → nota de implementación → guía QA (si hay pantalla)
-   → pull request con "Closes #<número>" → revisión → main
+   → guía QA (si hay pantalla) → commit y pull request documentados
+   con "Closes #<número>" → CI en verde → el autor lo une a main
+   → revisión de Juan y Leonel (observaciones o issue de bug si algo salió mal)
    ```
 
-2. **Flujo de specs.** Es el de Hugo, y opcional para Juan y Miguel (principio IV). Cada paso se aprueba antes de pasar al siguiente:
+2. **Flujo de specs.** Es el de Hugo, y opcional para todos (principio IV). Cada paso se aprueba antes de pasar al siguiente:
 
    ```text
    /speckit-specify → /entrevista-spec → (/speckit-clarify) → /qa-spec NNN
@@ -160,7 +167,7 @@ Flujo de specs (spec → plan → tareas, con spec-kit):
    - Las preguntas de entrevistas y QA se hacen una por una, con opciones y la recomendada primero.
    - Cada QA es de **una sola pasada**. Lo que aparezca después se resuelve como `DP-n` (decisión del plan) o `TK-n` (registro de implementación), no como una ronda nueva de preguntas.
    - Los requisitos se escriben en notación EARS (`RF-###`), con criterios de éxito medibles (`CE-###`) y la sección "Fuera de alcance" obligatoria.
-3. **Ramas y pull requests.** Una rama por issue y un pull request revisado por otra persona, como indica `docs/flujo-git-y-secretos.md`. El mensaje de commit lleva el formato `tipo(ámbito): descripción en español`.
+3. **Ramas y pull requests.** Una rama por issue y un pull request documentado que une su autor, como indica `docs/flujo-git-y-secretos.md`. El mensaje de commit lleva el formato `tipo(ámbito): descripción en español`.
 4. **Git y agentes de IA.** Cada persona decide qué puede hacer su agente con git y responde por ello. Los agentes de Hugo trabajan en solo lectura (`git status`, `git diff`, `git log` y `git show`): sugieren el mensaje de commit, y Hugo hace el commit, el push y el pull request.
 5. **Rol del agente: mentoría breve.** El agente explica en pocas líneas el porqué de cada decisión técnica y deja lo necesario para que otra persona pueda comprobar el trabajo.
 6. **Seguridad antes de cerrar.** Se revisan:
@@ -173,18 +180,18 @@ Flujo de specs (spec → plan → tareas, con spec-kit):
 ## Gobierno
 
 - **Prioridad.** Esta constitución manda sobre cualquier otra práctica del proyecto, incluidas las guías personales de agentes (`AGENTS.md`, `CLAUDE.md` u otras), que no forman parte del repositorio.
-- **Aprobaciones.** Hugo aprueba las specs, los planes y las tareas de sus áreas, y decide los hallazgos de sus entrevistas y QA. Juan y Miguel deciden en las suyas.
+- **Aprobaciones.** Cada dueño decide en lo suyo: aprueba sus specs, planes y tareas si los hace, y decide los hallazgos de sus entrevistas y QA. Leonel hace observaciones de arquitectura sobre lo implementado.
 - **Enmiendas.** La constitución solo cambia por un **pull request** que cumpla tres condiciones:
   - Hugo lo propone o lo aprueba;
-  - lo revisa al menos otra persona del equipo (Juan o Miguel);
-  - explica el motivo del cambio.
+  - explica el motivo del cambio;
+  - se avisa al equipo, y Juan o Leonel pueden hacer observaciones.
   - Los principios marcados como NO NEGOCIABLE solo cambian si cambian las reglas del hackathon, las condiciones del API de pey o la composición del equipo.
 - **Versionado semántico.**
   - Versión **mayor**: se retira o se redefine un principio.
   - Versión **menor**: se agrega un principio o una sección, o se amplía de forma importante.
   - **Parche**: cambios de redacción.
 - **Cumplimiento.**
-  - Cada revisión de un pull request comprueba esta constitución y que exista la nota de implementación, no solo que el código funcione.
+  - Cada revisión de un pull request comprueba esta constitución y que su descripción siga la plantilla, no solo que el código funcione.
   - Quien trabaja con specs llena en cada plan su verificación de la constitución (*Constitution Check*) antes y después del diseño, y justifica toda excepción en el seguimiento de complejidad (*Complexity Tracking*).
 
-**Versión**: 2.0.0 | **Ratificada**: 2026-11-14 | **Última enmienda**: 2026-11-15
+**Versión**: 3.0.0 | **Ratificada**: 2026-11-14 | **Última enmienda**: 2026-11-20

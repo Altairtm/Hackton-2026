@@ -2,7 +2,7 @@
 
 Reglas para trabajar en este repositorio. **El repo es público**: todo lo que se sube, incluido el historial de commits, lo puede ver cualquiera para siempre.
 
-Responsable: Hugo coordina la seguridad; Juan revisa y une los pull requests. Issue: #16. Roles y calendario: [flujo-de-trabajo.md](../flujo-de-trabajo.md).
+Responsable: Hugo coordina la seguridad; cada quien une su propio pull request, y Juan y Leonel revisan lo que entra a `main`. Issue: #16. Roles y calendario: [flujo-de-trabajo.md](../flujo-de-trabajo.md).
 
 ## 1. Regla de oro: los secretos nunca van al repositorio
 
@@ -57,12 +57,10 @@ git push -u origin feature/62-endpoint-qr
 ## 5. Pull requests
 
 1. Abre el pull request hacia `main` y escribe `Closes #<número>` en la descripción para que el issue se cierre solo.
-2. Pide revisión a la persona indicada:
-   - Pull requests de Hugo y de Miguel → los revisa y une Juan.
-   - Pull requests de Juan → los revisa y une Hugo.
-3. Antes de pedir revisión, revisa tu propio diff y busca llaves, `.env` o datos personales.
-4. Incluye la nota de implementación del issue en `docs/implementacion/` (plantilla: [`_plantilla.md`](implementacion/_plantilla.md)).
-5. Se une a `main` cuando cumple los criterios de aceptación del issue. Nadie une su propio pull request.
+2. Llena la descripción con la [plantilla de pull request](../.github/pull_request_template.md): qué pedía el issue, qué se hizo, qué se decidió y por qué, cómo probarlo, qué quedó pendiente y la revisión de seguridad. No hay otro documento aparte.
+3. Antes de unir, revisa tu propio diff y busca llaves, `.env` o datos personales.
+4. Únelo tú a `main` cuando el CI esté en verde y cumpla los criterios de aceptación del issue. No hace falta aprobación previa.
+5. Juan y Leonel revisan lo que entra a `main`. Si algo salió mal, lo comentan en el pull request o abren un issue `tipo: bug`. Si rompe la demo, se corrige o se revierte con otro pull request.
 
 ## 6. Si GitHub bloquea tu `git push`
 
